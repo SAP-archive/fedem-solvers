@@ -1,0 +1,95 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for smoothed-ramped functions.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 20 Aug 2022
+
+@test
+subroutine testSmoothRamp
+#if FT_PFUNIT > 3
+  use fUnit, only : assertTrue, assertEqual
+  use fUnit, only : sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertTrue, assertEqual
+  use pfunit_mod, only : sourceLocation, anyExceptions
+#endif
+  use ExplicitFunctionsModule, only : dbgFunc
+  use SensorTypeModule, only : SensorType, nullifySensor, TIME_p
+  use FunctionTypeModule, only : FunctionType, EngineType, dp
+  use FunctionTypeModule, only : nullifyFunction, nullifyEngine
+  use FunctionTypeModule, only : deallocateFunction, deallocateEngine
+  use FunctionTypeModule, only : initRampFunction, ourRamp
+  use EngineRoutinesModule, only : EngineValue
+  use reportErrorModule, only : setErrorFile
+
+  implicit none
+
+  type(EngineType)           :: engine
+  type(FunctionType), target :: sine
+  type(SensorType)  , target :: time
+  real(dp)          , target :: t
+
+  integer  :: ierr
+  real(dp) :: timeStart, timeInc, f
+  real(dp) :: rampStart, rampStop, rampLength, rampPause, velMaxRamp
+
+  dbgFunc = 6
+  write(6,"(//'Testing evaluation of smooth-ramped function')")
+  call setErrorFile (6)
+
+  timeStart = 0.00_dp
+  timeInc   = 0.05_dp
+  velMaxRamp = 1.0_dp
+  rampLength = 2.0_dp
+  rampPause  = 0.1_dp
+  rampStart  = timeStart - (rampLength + rampPause)
+  rampStop   = timeStart + timeInc
+  call initRampFunction (rampStart,rampStop,rampLength,velMaxRamp,ierr)
+  @assertEqual(0,ierr)
+
+  call nullifySensor (time)
+  time%id%baseId = 3
+  time%id%userId = 1
+  time%type = TIME_p
+  time%value => t
+
+  call nullifyFunction (sine)
+  allocate(sine%intParameters(3),sine%realParameters(5))
+  sine%id%baseId = 4
+  sine%id%userId = 1
+  sine%intParameters(1) = 1 ! SINUSOIDAL_p
+  sine%intParameters(2:) = 0
+  sine%realParameters(1) = 1.0_dp
+  sine%realParameters(2) = -0.25_dp
+  sine%realParameters(3) = 2.3_dp
+  sine%realParameters(4:) = 0.0_dp
+
+  call nullifyEngine (engine)
+  allocate(engine%args(1))
+  engine%id%baseId = 5
+  engine%id%userId = 1
+  engine%func => sine
+  engine%args(1)%p => time
+
+  t = rampStart-timeInc
+  do while (t < 1.0)
+     t = t + timeInc
+     f = EngineValue(engine,ierr)
+     @assertEqual(0,ierr)
+     print 1,t,f
+  end do
+1 format('t, f(t) =',F6.2,1PE13.5)
+
+  call deallocateFunction (ourRamp)
+  call deallocateFunction (sine)
+  call deallocateEngine (engine)
+  deallocate(ourRamp)
+
+end subroutine testSmoothRamp

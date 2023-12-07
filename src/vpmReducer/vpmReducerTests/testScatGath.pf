@@ -1,0 +1,50 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for scatter/gather operations.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 7 May 2020
+
+@test
+subroutine testScatGath
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, sourceLocation, anyExceptions
+#endif
+
+  integer,parameter :: M(12) = (/1,3,4,7,6,9,13,17,12,15,16,18/)
+  double precision  :: A(12), B(20), C(20), D(12), E(12)
+
+  A = (/(DBLE(i),i=1,12)/)
+  B = 0.0d0
+  C = 0.0d0
+
+  B(M) = A
+  call DSCATR (12,M,A(1),C(1),1)
+  print'(/A)','Using intrinsic F90 operator'
+  print'(1P10E8.1)',B
+  print'(A)','Using DSCATR subroutine'
+  print'(1P10E8.1)',C
+  do i = 1, size(B)
+     @assertEqual(B(i),C(i))
+  end do
+
+  D = B(M)
+  call DGATHR (12,M,B(1),E(1),1)
+  print'(/A)','Using intrinsic F90 operator'
+  print'(1P10E8.1)',D
+  print'(A)','Using DGATHR subroutine'
+  print'(1P10E8.1)',E
+  do i = 1, size(D)
+     @assertEqual(D(i),E(i))
+     @assertEqual(D(i),DBLE(i))
+  end do
+
+end subroutine testScatGath

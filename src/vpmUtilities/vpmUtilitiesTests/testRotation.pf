@@ -1,0 +1,63 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for various rotation matrix operations.
+!>
+!> @author Knut Morten Okstad, Fedem Technology AS
+!>
+!> @date 14 Feb 2018
+
+@test
+subroutine testRotation
+
+  use kindModule    , only : dp
+  use rotationModule, only : eulerToMat, matToEulerXYZ, ffa_glbeulerzyx
+  use rotationModule, only : vec_to_mat, mat_to_vec
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, sourceLocation, anyExceptions
+#endif
+
+  implicit none
+
+  integer  :: i
+  real(dp) :: angle(3), Tmat(3,3)
+
+  !! Just set some random Euler angles
+  angle = (/ 0.1234_dp, 0.2341_dp, 0.3412_dp /)
+
+  !! Convert to a transformation matrix
+  Tmat = eulerToMat(angle)
+  print 1,(Tmat(i,:),i=1,3)
+1 format(//'Tmat :',3F10.6/(6X,3F10.6))
+
+  !! Transform back to Euler angles
+  angle = matToEulerXYZ(Tmat,(/(0.0_dp,i=1,3)/),i)
+  print "(/'matToEulerXYZ  :',3F10.6)",angle
+  @assertEqual(0.1234_dp, angle(1))
+  @assertEqual(0.2341_dp, angle(2))
+  @assertEqual(0.3412_dp, angle(3))
+
+  !! Transform again using the FFaLib method
+  angle = 0.0_dp
+  call ffa_glbeulerzyx (Tmat,angle)
+  print "('ffa_glbeulerzyx:',3F10.6)",angle
+  @assertEqual(0.1234_dp, angle(1))
+  @assertEqual(0.2341_dp, angle(2))
+  @assertEqual(0.3412_dp, angle(3))
+
+  !! Convert again using vec_to_mat and mat_to_vec
+  call vec_to_mat (angle,Tmat,6)
+  print 1,(Tmat(i,:),i=1,3)
+  call mat_to_vec (Tmat,angle)
+  print "('mat_to_vec:',3F10.6)",angle
+  @assertEqual(0.1234_dp, angle(1), 1.0e-15_dp)
+  @assertEqual(0.2341_dp, angle(2), 1.0e-15_dp)
+  @assertEqual(0.3412_dp, angle(3), 1.0e-15_dp)
+
+end subroutine testRotation

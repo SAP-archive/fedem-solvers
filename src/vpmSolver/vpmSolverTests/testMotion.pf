@@ -1,0 +1,96 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for prescribed motions.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 8 Apr 2020
+
+@test
+subroutine testMotion
+#if FT_PFUNIT > 3
+  use fUnit     , only : assertTrue, assertEqual
+  use fUnit     , only : sourceLocation, anyExceptions
+  use fUnitExtra, only : srcdir ! pFUnit extension
+#else
+  use pfunit_mod, only : assertTrue, assertEqual
+  use pfunit_mod, only : sourceLocation, anyExceptions
+  use pFUnitArgs, only : srcdir ! pFUnit extension
+#endif
+
+  use TriadTypeModule           , only : dp, TriadType, nullifyTriad
+  use MasterSlaveJointTypeModule, only : MasterSlaveJointType
+  use FunctionTypeModule        , only : EngineType
+  use MotionTypeModule          , only : MotionType, deAllocateMotions
+  use MotionTypeModule          , only : InitiateMotions, writeObject
+  use MotionRoutinesModule      , only : UpdatePrescribedMotions
+  use inputUtilities            , only : iuWriteToScratch
+  use reportErrorModule         , only : setErrorFile
+
+  implicit none
+
+  type(TriadType)            :: triads(1)
+  type(MasterSlaveJointType) :: joints(0)
+  type(EngineType)           :: engines(0)
+  type(MotionType), pointer  :: motions(:) => null()
+  integer        , parameter :: infp = 7, nStep = 10
+  character(128) , parameter :: chfsi = '&MOTION $'// &
+       'id = 21, extId = 3, extDescr = "My Motion" $'// &
+       'triadId = 5, nodeId = 42, lDof = 2, type = "deflection" $ / $'
+  integer  :: i, ierr
+  real(dp) :: t, dt, d(nStep)
+  real(dp), target :: CC = 0.0_dp
+
+  write(6,"(//'Testing input of prescribed motion from file')")
+  @assertTrue(allocated(srcdir))
+  write(6,"('Source directory: ',A)") srcdir
+  call setErrorFile (6)
+
+  allocate(motions(0))
+  call nullifyTriad (triads(1))
+  triads(1)%id%baseId = 5
+  triads(1)%id%userId = 1
+  triads(1)%nDOFs = 6
+
+  !! Initialize the motion data from file
+  open(infp,IOSTAT=ierr,STATUS='SCRATCH')
+  @assertEqual(0,ierr)
+  call iuWriteToScratch (infp,chfsi,ierr)
+  @assertEqual(0,ierr)
+  call InitiateMotions (infp,srcdir//'/models/motions.fnd', &
+       &                triads,joints,engines,motions,ierr)
+  @assertEqual(0,ierr)
+  @assertEqual(1,size(motions))
+  @assertEqual(2,motions(1)%dof)
+  @assertEqual(11,motions(1)%ipd)
+  motions(1)%cc => CC
+  motions(1)%sDof = 1
+  close(infp)
+  call writeObject (motions(1),6,2)
+
+  !! Generate reference values (see createTestFnd.C)
+  d = 11.0_dp
+  do i = 3, 5, 2
+     d(i:) = d(i:) + 100.0_dp
+  end do
+  write(6,"('Reference values:',F6.1,9F7.1/(16X,10F7.1))") d
+
+  !! Update the prescribed motion value from the binary file
+  t = 0.0
+  dt = 0.05_dp
+  do i = 1, nStep
+     call UpdatePrescribedMotions (t,dt,dt,dt,d,d,motions,.true.,ierr)
+     write(6,"(10X,'Step',I3,F6.2,F6.1)") i,t,motions(1)%D
+     @assertEqual(0,ierr)
+     @assertEqual(d(i),motions(1)%D)
+     t = t + dt
+  end do
+
+  call deAllocateMotions (motions)
+
+end subroutine testMotion

@@ -1,0 +1,102 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for the ANDES shell element.
+!>
+!> @author Knut Morten Okstad, Fedem Technology AS
+!>
+!> @date 17 Apr 2018
+
+@test
+subroutine testANDES
+
+  use kindModule       , only : dp
+  use isoMatModule     , only : isoMat2D
+  use denseMatrixModule, only : solveEigenvalues
+  use andes3ShellModule, only : Andes3shell_stiffmat
+  use andes4ShellModule, only : Andes4shell_stiffmat
+  use manipMatrixModule, only : writeObject
+  use reportErrorModule, only : setErrorFile
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, assertGreaterThan
+  use funit, only : sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, assertGreaterThan
+  use pfunit_mod, only : sourceLocation, anyExceptions
+#endif
+
+  implicit none
+
+  integer , parameter :: ltype = 2
+  real(dp), parameter :: alpha = 1.5_dp, alphaH = 0.5_dp, beta = 0.9_dp
+  real(dp), parameter :: Emod  = 1.95e11_dp, nu = 0.29_dp, t = 0.012_dp
+
+  integer  :: i, j, ierr
+  real(dp) :: Xl(4), Yl(4), Zl(4)
+  real(dp) :: C(6,6), EK3(18,18), EK4(24,24)
+  real(dp) :: lambda(24)
+
+  Xl = 0.0_dp
+  Yl = 0.0_dp
+  Zl = 0.0_dp
+  C  = 0.0_dp
+  EK3 = 0.0_dp
+  EK4 = 0.0_dp
+
+  call setErrorFile (6)
+  call isoMat2D (Emod*t,nu,C(1:3,1:3))
+  do i = 1,3
+     do j = 1,3
+        C(i+3,j+3) = C(i,j) * t*t/12.0_dp
+     end do
+  end do
+
+  Xl(2) =  5.457440397558195e-2_dp
+  Xl(3) = -8.334066962371289e-2_dp
+  Yl(3) =  5.954376492052836e-2_dp
+  call Andes3shell_stiffmat (Xl,Yl,C,alpha,alphaH,ltype,EK3,IERR)
+  @assertEqual(0,IERR)
+
+  write(6,"(' XL =',1P3E23.15)") XL(1:3)
+  write(6,"(' YL =',1P3E23.15)") YL(1:3)
+  write(6,"(' ZL =',1P3E23.15)") ZL(1:3)
+  call writeObject (C,6,'Constitutive matrix')
+  call writeObject (EK3,6,'ANDES3 stiffness matrix')
+
+  !! Check the eigenvalues of the stiffness matrix, the first 6 should be zero
+  call solveEigenvalues (EK3,lambda,C,18,18,0,IERR)
+  @assertEqual(0,IERR)
+  call writeObject (lambda(1:18),6,'ANDES3 eigenvalues')
+  do i = 1, 6
+     @assertEqual(0.0_dp,lambda(i),1.0e-5_dp)
+  end do
+  @assertGreaterThan(lambda(7),1.0_dp)
+
+  Xl(2) = 3.067533838264862e-2_dp
+  Xl(3) = 3.067533838264862e-2_dp
+  Yl(3) = 0.138125_dp
+  Yl(4) = 0.138125_dp
+  call Andes4shell_stiffmat (Xl,Yl,Zl,C,alpha,beta,ltype,EK4,IERR)
+  @assertEqual(0,IERR)
+
+  write(6,"(' XL =',1P4E23.15)") XL
+  write(6,"(' YL =',1P4E23.15)") YL
+  write(6,"(' ZL =',1P4E23.15)") ZL
+  call writeObject (C,6,'Constitutive matrix')
+  call writeObject (EK4,6,'ANDES4 stiffness matrix')
+
+  !! Check the eigenvalues of the stiffness matrix, the first 6 should be zero
+  call solveEigenvalues (EK4,lambda,C,24,24,0,IERR)
+  @assertEqual(0,IERR)
+  call writeObject (lambda(1:24),6,'ANDES4 eigenvalues')
+  do i = 1, 6
+     @assertEqual(0.0_dp,lambda(i),1.0e-5_dp)
+  end do
+  !! The 4-node element appears to have 7 null modes (not 6)
+  @assertGreaterThan(lambda(8),1.0_dp)
+
+end subroutine testANDES

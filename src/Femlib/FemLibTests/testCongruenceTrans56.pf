@@ -1,0 +1,116 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit test for congruenceTrans56.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 26 Jan 2021
+
+@test
+subroutine testCongruenceTrans56
+
+  use kindModule       , only : dp
+  use manipMatrixModule, only : writeObject
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, sourceLocation, anyExceptions
+#endif
+
+  implicit none
+
+  integer  :: i, j, k, l, n
+  real(dp) :: EK3(15,15), EK36(18,18), EK8(40,40), EK86(48,48), T(8,3,3), dr6
+  real(dp), parameter :: eps_p = 1.0e-6_dp
+
+  T = 0.0_dp
+  do n = 1, size(T,1)
+     do i = 1, 3
+        T(n,i,i) = 1.0_dp
+     end do
+  end do
+
+  !! Check 3-noded element matrices
+  n = 0
+  do j = 1, size(EK3,1)
+      do i = j, size(EK3,2)
+         n = n + 1
+         EK3(i,j) = real(n,dp)
+         EK3(j,i) = EK3(i,j)
+      end do
+  end do
+
+  n = size(EK3,1)/5
+  dr6 = 0.0_dp
+  do i = 0, n-1
+     dr6 = dr6 + EK3(5*i+4,5*i+4) + EK3(5*i+5,5*i+5)
+  end do
+  dr6 = dr6 / real(2*n,dp)
+  call writeObject (EK3,6,'EK3',10)
+  call congruenceTrans56 (EK3,EK36,T(1:n,:,:),n,eps_p)
+  call writeObject (EK36,6,'EK36',12)
+  do i = 0, n-1
+     do j = 0, n-1
+        do k = 1, 5
+           do l = 1, 5
+              @assertEqual(EK3(5*i+k,5*j+l),EK36(6*i+k,6*j+l))
+           end do
+        end do
+     end do
+     @assertEqual(eps_p*dr6,EK36(6*i+6,6*i+6))
+  end do
+
+  !! Verify that the input and output matrix can be the same
+  call DCOPY (size(EK3),EK3(1,1),1,EK36(1,1),1)
+  call congruenceTrans56 (EK36,EK36,T(1:n,:,:),n,0.0_dp)
+  do i = 0, n-1
+     do j = 0, n-1
+        do k = 1, 5
+           do l = 1, 5
+              @assertEqual(EK3(5*i+k,5*j+l),EK36(6*i+k,6*j+l))
+           end do
+        end do
+     end do
+  end do
+
+  !! Check 8-noded element matrices
+  n = 0
+  do j = 1, size(EK8,1)
+      do i = j, size(EK8,2)
+         n = n + 1
+         EK8(i,j) = real(n,dp)
+         EK8(j,i) = EK8(i,j)
+      end do
+  end do
+
+  n = size(EK8,1)/5
+  call congruenceTrans56 (EK8,EK86,T(1:n,:,:),n,0.0_dp)
+  do i = 0, n-1
+     do j = 0, n-1
+        do k = 1, 5
+           do l = 1, 5
+              @assertEqual(EK8(5*i+k,5*j+l),EK86(6*i+k,6*j+l))
+           end do
+        end do
+     end do
+  end do
+
+  !! Verify that the input and output matrix can be the same
+  call DCOPY (size(EK8),EK8(1,1),1,EK86(1,1),1)
+  call congruenceTrans56 (EK86,EK86,T(1:n,:,:),n,0.0_dp)
+  do i = 0, n-1
+     do j = 0, n-1
+        do k = 1, 5
+           do l = 1, 5
+              @assertEqual(EK8(5*i+k,5*j+l),EK86(6*i+k,6*j+l))
+           end do
+        end do
+     end do
+  end do
+
+end subroutine testCongruenceTrans56

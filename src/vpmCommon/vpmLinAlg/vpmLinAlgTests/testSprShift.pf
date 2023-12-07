@@ -1,0 +1,105 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for some sparse matrix operations.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 17 Aug 2021
+
+@test
+subroutine testSprShift
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, sourceLocation, anyExceptions
+#endif
+  use SamModule          , only : SamType, dp
+  use SysMatrixTypeModule, only : SysMatrixType, writeObject
+
+  implicit none
+
+  integer , parameter :: shellStrip = 1
+  logical , parameter :: lumpedMass = .true.
+  integer , parameter :: ipsw = 0, lpu = 6
+  integer , parameter :: nel(2) = (/ 4, 1 /)
+  real(dp), parameter :: geo(3) = (/ 4.0_dp, 1.0_dp, 0.1_dp /)
+
+  type(SamType)       :: sam
+  type(SysMatrixType) :: sysK, sysM
+  integer             :: i, ierr, ndim, nred
+  real(dp)            :: kval
+
+  !! Create and preprocess the FE model
+  call generate_model (shellStrip,nel,geo,sam,ipsw,lpu,ierr)
+  @assertEqual(ierr,0)
+  !! Create the associated system matrices
+  call preproc_system (sam,sysK,sysM,lumpedMass,ipsw,lpu,ierr)
+  @assertEqual(ierr,0)
+
+  if (associated(sysK%sparse) .and. associated(sysM%sparse)) then
+
+     !! The real testing starts here.
+     !! First, fill the two matrices with some recognizable content.
+     !! Notice that for sparse matrices, the first (ndim) values
+     !! are used as temporary storage during the matrix factorization.
+     !! The real matrix elements therefore starts at location ndim+1.
+     ndim = sysK%dim
+     do i = ndim+1, size(sysK%value)
+        sysK%value(i) = real(1000*(i-ndim),dp)
+     end do
+     do i = ndim+1, size(sysM%value)
+        sysM%value(i) = real(i-ndim,dp)
+     end do
+     call writeObject (sysK,sam%mpar,lpu,'System stiffness matrix',complexity=5)
+     call writeObject (sysM,sam%mpar,lpu,'System mass matrix',complexity=5)
+
+     !! Perform the shift operation A = A - shift*B
+     call SPRAXPY (sysK%sparse,sysM%sparse,sysK%value,sysM%value,1.0_dp,ierr)
+     @assertEqual(ierr,0)
+
+     call writeObject (sysK,sam%mpar,lpu,'The shifted matrix',complexity=5)
+
+     nred = 0
+     kval = 0.0_dp
+     do i = ndim+1, size(sysK%value)
+        kval = kval + 1000_dp
+        if (sysK%value(i) < kval) then
+           write(lpu,600) i-ndim, kval, sysK%value(i)
+           nred = nred + 1
+        end if
+     end do
+600  format(5X,'Non-zero term',I6,' reduced from',1PE12.5,' to',E12.5)
+
+     @assertEqual(nred,int(sysM%sparse%mspar(16)))
+
+  end if
+
+contains
+
+  !> @brief Performs the AXPY operation on two sparse matrices A and B.
+  subroutine SPRAXPY (sprA,sprB,A,B,SHIFT,IERR)
+    use SysMatrixTypeModule, only : SparseStorageType, dp, ik
+    implicit none
+    type(SparseStorageType), intent(inout) :: sprA, sprB
+    real(dp)               , intent(inout) :: A(:), B(:)
+    real(dp)               , intent(in)    :: SHIFT
+    integer                , intent(out)   :: IERR
+    integer(kind=ik)       , allocatable   :: iwork(:)
+    integer(kind=ik)       , parameter     :: KSB = 1_ik
+    integer(kind=ik)                       :: JERR
+    allocate(iwork(sprA%mspar(8)),stat=IERR)
+    if (IERR /= 0) return
+    call SPRSHA (sprA%mspar(1), sprA%mtrees(1), sprA%msifa(1), &
+         &       sprB%mspar(1), sprB%mtrees(1), sprB%msifa(1), &
+         &       iwork(1), A(1), B(1), SHIFT, sprA%mspar(8), &
+         &       KSB, int(lpu,ik), JERR)
+    deallocate(iwork)
+    IERR = int(JERR)
+  end subroutine SPRAXPY
+
+end subroutine testSprShift

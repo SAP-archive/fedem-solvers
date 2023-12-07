@@ -1,0 +1,98 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for various B-matrix operations.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 25 Feb 2019
+
+@test
+subroutine testBmatrix
+
+  use DiskMatrixModule  , only : DiskMatrixType, dp, dmNdp_p
+  use DiskMatrixModule  , only : dmNullify, dmOpen, dmClose, dmSetValue
+  use DiskMatrixModule  , only : dmMatTimesVec, dmMatTransTimesVec
+  use DiskMatrixModule  , only : dmFindAbsMaxRowValues, dmFindMinConnections
+  use scratchArrayModule, only : releaseScratchArrays
+  use reportErrorModule , only : setErrorFile
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, assertLessThan
+  use funit, only : sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, assertLessThan
+  use pfunit_mod, only : sourceLocation, anyExceptions
+#endif
+
+  implicit none
+
+  !! Define some arbitrary B-matrix content here
+  integer, parameter :: nRow = 4, nCol = 7
+  real   , parameter :: values(nRow*nCol) = (/ &
+       0.0, 0.1, 0.3, 4.0, 2.3, 0.2, 0.0, &
+       0.0, 0.0, 0.0, 0.0, 0.1,-0.2, 0.0, &
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
+       1.2, 3.1, 0.0,-2.7, 0.5, 0.0, 1.2 /)
+
+  real(dp)             :: vec(nRow), vecc(nCol)
+  real(dp), parameter  :: tol_p = 1.0e-8_dp
+  integer              :: minIdx(2), i, j, k, ierr
+  type(DiskMatrixType) :: Bmat
+
+  k = 0
+  call setErrorFile (6)
+  call dmNullify (Bmat)
+  call dmOpen (Bmat,'tmpBmat.fmx',k,4,7,dmNdp_p,ierr)
+  @assertLessThan(0,ierr)
+
+  do i = 1, nRow
+     do j = 1, nCol
+        k = k + 1
+        call dmSetValue (Bmat,real(values(k),dp),i,j,ierr)
+        @assertEqual(0,ierr)
+     end do
+  end do
+
+  vecc = (/ 1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp, 7.0_dp /)
+  call dmMatTimesVec (Bmat,vecc,vec,ierr,.true.)
+  @assertEqual(0,ierr)
+  @assertEqual(29.8_dp,vec(1),tol_p*100.0_dp)
+  @assertEqual(-0.7_dp,vec(2),tol_p*10.0_dp)
+  @assertEqual( 0.0_dp,vec(3))
+  @assertEqual( 7.5_dp,vec(4),tol_p/10.0_dp)
+
+  vec = vecc(1:nRow)
+  call dmMatTransTimesVec (Bmat,vec,vecc,ierr)
+  @assertEqual(0,ierr)
+  @assertEqual( 4.8_dp,vecc(1),tol_p*100.0_dp)
+  @assertEqual(12.5_dp,vecc(2),tol_p*100.0_dp)
+  @assertEqual( 0.3_dp,vecc(3),tol_p*10.0_dp)
+  @assertEqual(-6.8_dp,vecc(4),tol_p*100.0_dp)
+  @assertEqual( 4.5_dp,vecc(5),tol_p*10.0_dp)
+  @assertEqual(-0.2_dp,vecc(6),tol_p)
+  @assertEqual( 4.8_dp,vecc(7),tol_p*100.0_dp)
+
+  call dmFindAbsMaxRowValues (Bmat,vec,ierr)
+  @assertEqual(0,ierr)
+  @assertEqual(4.0_dp,vec(1),tol_p)
+  @assertEqual(0.2_dp,vec(2),tol_p)
+  @assertEqual(0.0_dp,vec(3),tol_p)
+  @assertEqual(3.1_dp,vec(4),tol_p*10.0_dp)
+
+  call dmFindMinConnections (Bmat,minIdx,vec,ierr)
+  @assertEqual(0,ierr)
+  @assertEqual(3,minIdx(1))
+  @assertEqual(2,minIdx(2))
+  @assertEqual(0.0_dp,vec(1),tol_p)
+  @assertEqual(0.2_dp,vec(2),tol_p)
+
+  call dmClose (Bmat,ierr)
+  @assertEqual(0,ierr)
+
+  call releaseScratchArrays ()
+
+end subroutine testBmatrix

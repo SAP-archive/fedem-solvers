@@ -1,0 +1,2926 @@
+C     SPDX-FileCopyrightText: 2023 SAP SE
+C
+C     SPDX-License-Identifier: Apache-2.0
+C
+C     This file is part of FEDEM - https://openfedem.org
+C
+      SUBROUTINE CHQA30(XG,YG,ZG,IERR)
+C
+C     ******************************************************************
+C
+C         E L E M E N T  L I B R A R Y  SUBROUTINE CHQA30
+C
+C          CHQA30 TESTS WHETHER A 8-NODES SUBPARAMETRIC SHELL ELEMENT
+C          IS DEGENERATED IN THE SENSE THAT THE MIDSIDE NODES DEVIDE
+C          AN ELEMENT SIDE IN A LARGER RATIO THAN 1:3
+C
+C          PROGRAMMED BY :J.H.WERGELAND  DNV
+C          DATE/VERSION  :26.09.74/01
+C
+C     ******************************************************************
+C
+      IMPLICIT          NONE
+      DOUBLE PRECISION  XG(8), YG(8), ZG(8)
+      INTEGER           IERR
+      DOUBLE PRECISION  DX, DY, DZ, RL, RL1, RL2
+      INTEGER           I, N, N1
+      N=1
+      DO 60 I=1,4
+      N1=N+1
+      DX=XG(N1)-XG(N)
+      DY=YG(N1)-YG(N)
+      DZ=ZG(N1)-ZG(N)
+      RL1=SQRT(DX*DX+DY*DY+DZ*DZ)
+      IF(N-6)10,10,5
+    5 N=-1
+   10 CONTINUE
+      DX=XG(N+2)-XG(N1)
+      DY=YG(N+2)-YG(N1)
+      DZ=ZG(N+2)-ZG(N1)
+      RL2=SQRT(DX*DX+DY*DY+DZ*DZ)
+      IF(RL1-1.E-06)40,40,15
+   15 IF(RL2-1.E-06)40,40,20
+   20 RL=RL1/RL2
+      IF(RL-.333333333)40,40,30
+   30 IF(RL-3.)50,40,40
+   40 CONTINUE
+      IERR=-1
+      GO TO 70
+   50 CONTINUE
+      N=N+2
+   60 CONTINUE
+   70 CONTINUE
+      RETURN
+      END
+      SUBROUTINE DNI830(DNXI,DNET,DNZE,XI,ET,XII,ETI)
+C
+C     ******************************************************************
+C
+C        E L E M E N T  L I B R A R Y  SUBROUTINE DNI830
+C
+C          DNI830 COMPUTES THE SHAPE FUNCTION AND THE PARTIAL
+C           DERIVATIVES OF THE SHAPE FUNCTION FOR A POINT ON A SUB-
+C           PARAMETRIC CURVED EIGHT NODES SHELL ELEMENT
+C
+C           PROGRAMMED BY : J.H.WERGELAND  DNV
+C
+C           DATE/VERSION  : 3.12.73/01
+C
+C     ******************************************************************
+C
+      IMPLICIT          NONE
+      DOUBLE PRECISION  DNXI(8), DNET(8),  DNZE(8),
+     1                  XI, ET, XII(8), ETI(8)
+      INTEGER           I
+      DOUBLE PRECISION  XIXI, XIS, ETETI, ETS
+C
+      DO 50 I=1,8
+      XIXI=XII(I)*XI
+      ETETI=ETI(I)*ET
+C
+      GO TO (10,20,10,30,10,20,10,30),I
+C
+C     CORNER NODES
+C
+   10 CONTINUE
+      ETS=.25*(1.+ETETI)
+      XIS=.25*(1.+XIXI)
+      DNXI(I)=XII(I)*(2.*XIXI+ETETI)*ETS
+      DNET(I)=ETI(I)*XIS*(2.*ETETI+XIXI)
+      DNZE(I)=XIS*(1.+ETETI)*(XIXI+ETETI-1.)
+      GO TO 50
+C
+C     MIDSIDE NODES WHERE XII=0
+C
+   20 CONTINUE
+      ETS=1.+ETETI
+      XIS=.5*(1.-XI*XI)
+      DNXI(I)=-XI*ETS
+      DNET(I)=ETI(I)*XIS
+      DNZE(I)=ETS*XIS
+      GO TO 50
+C
+C     MIDSIDE NODES WHERE ETI=0
+C
+   30 CONTINUE
+      ETS=(1.-ET*ET)*.5
+      XIS=1.+XIXI
+      DNXI(I)=XII(I)*ETS
+      DNET(I)=-XIS*ET
+      DNZE(I)=XIS*ETS
+C
+   50 CONTINUE
+C
+      RETURN
+      END
+      SUBROUTINE PRC830(PRC,PRCM,XG,YG,ZG,TH,XII,ETI,LAMBI,INT1,INT2,
+     1                  ZE,IEL,IW,IERR)
+C
+C
+C     ******************************************************************
+C
+C        E L E M E N T  L I B R A R Y  SUBROUTINE PRC830
+C
+C          PRC830 INTEGRATES OVER A SURFACE (ZE=-1,0 OR 1) ON A
+C          SUBPARAMETRIC CURVED QUADRILATERAL SHELL ELEMENT THE
+C          PRODUCTS NI*NJ. IN CASE FORCES  ARE ACTING IN THE
+C          SURFACE ZE=1 OR -1 THE TERMS NI*NJ*TI*ZETA*.5*(-V2I,V1I)
+C          ARE ALSO INTEGRATED.V1I AND V2I CONTAINES DIRECTION COSINES
+C          FOR LOCAL X-AND Y-AXIS RESPECTIVELY IN LOCAL NODE NUMBER I.
+C          PRC830 IS MADE FOR BE CALLED BY SCQS33 IN CONNECTION WITH
+C          CALCULATION OF CONSISTENT NODAL FORCES DUE TO PRESSURE
+C          IN COMPONENT FORM
+C
+C          PROGRAMMED BY :J.H.WERGELAND DNV
+C          DATE/VERSION  :25.05.75/01
+C
+C     ******************************************************************
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     PRC(8,8,3),    PRCM(16,24,3), XG(8),
+     1              YG(8),         ZG(8),         TH(8),
+     2              FNOR(3),       XV(4,4),       WT(4,4),
+     3              XII(8),        ETI(8),        PF(8,8),
+     4              DNXI(8),       DNET(8),       NXIET(8),
+     5              J(3,3),        JI(3,3),       LAMBI(8,3,3)
+C
+C
+      DOUBLE PRECISION NXIET,J,JI,LAMBI
+C
+C     NULLIFY ARRAYS PRC AND PRCM FOT THIS SJRFACE
+C
+      MEK=8
+      IS=NINT(ZE+2.0)
+      DO 25 I=1,MEK
+      II=(I-1)*2
+      DO 20 I1=1,MEK
+      II1=(I1-1)*3
+      PRC(I,I1,IS)=0.
+      DO 15 J1=1,2
+      JJ=II+J1
+      DO 10 J2=1,3
+      JJ1=II1+J2
+      PRCM(JJ,JJ1,IS)=0.
+   10 CONTINUE
+   15 CONTINUE
+   20 CONTINUE
+   25 CONTINUE
+C
+C     SET ABCISSA AND WEIGHTS FUNCTIONS FOR THE GIVEN INTEGRATION TYPE
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350268
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(2,3)=0.
+      XV(3,3)=-XV(1,3)
+      XV(1,4)=-.861136312
+      XV(2,4)=-.339981043
+      XV(3,4)=-XV(2,4)
+      XV(4,4)=-XV(1,4)
+      WT(1,1)=2.
+      WT(2,2)=1.
+      WT(1,2)=1.
+      WT(1,3)=.555555556
+      WT(2,3)=.88888888889
+      WT(3,3)=WT(1,3)
+      WT(1,4)=.347854845
+      WT(2,4)=.652145155
+      WT(3,4)=WT(2,4)
+      WT(4,4)=WT(1,4)
+C
+C     *******************************
+C     START THE GAUSSIAN INTEGRATION LOOP
+C     *******************************
+C
+      DO 110 L=1,INT1
+      DO 100 M=1,INT2
+C
+C     CALCULATE THE PARTIAL DERIVATIVES OF THE SHAPE FUNCTIOS
+C     IN THE INTEGRATION POINT
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+C
+C     CALCULATE THE JACOBIAN MATRIX IN THE INTEGRATION POINT
+C
+      CALL JACO30(J,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZE,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)120,50,50
+   50 CONTINUE
+C
+C     CALCULATE A SURFACE NORMAL IN THE INT.POINT
+C
+      FNOR(1)=J(1,2)*J(2,3)-J(2,2)*J(1,3)
+      FNOR(2)=J(2,1)*J(1,3)-J(1,1)*J(2,3)
+      FNOR(3)=J(1,1)*J(2,2)-J(1,2)*J(2,1)
+C
+C     CALCULATE THE AREA DIFFERENTIAL :D(AREA)=G*DXI*DET
+C
+      G=SQRT(FNOR(1)*FNOR(1)+FNOR(2)*FNOR(2)+FNOR(3)*FNOR(3))
+      COF=WT(L,INT1)*WT(M,INT2)*G
+      DO 65 I=1,MEK
+      DO 60 J1=I,MEK
+      PF(I,J1)=COF*NXIET(I)*NXIET(J1)
+      PF(J1,I)=PF(I,J1)
+      PRC(I,J1,IS)=PRC(I,J1,IS)+PF(I,J1)
+      PRC(J1,I,IS)=PRC(I,J1,IS)
+   60 CONTINUE
+   65 CONTINUE
+      IF(IS-2)70,95,70
+   70 CONTINUE
+      COFF=.5*ZE
+      DO 90 I=1,MEK
+      COF1= COFF*TH(I)
+      II=(I-1)*2
+      DO 85 J1=1,MEK
+      JJ=(J1-1)*3
+      ISIGN=-1
+      PF(I,J1)=PF(I,J1)*COF1
+      DO 80 I1=1,2
+      ILA=3-I1
+      II1=II+I1
+      PF(I,J1)=PF(I,J1)*ISIGN
+      DO 75 JJ1=1,3
+      JJJ=JJ+JJ1
+      PRCM(II1,JJJ,IS)=PRCM(II1,JJJ,IS)+PF(I,J1)*LAMBI(I,ILA,JJ1)
+   75 CONTINUE
+   80 CONTINUE
+   85 CONTINUE
+   90 CONTINUE
+   95 CONTINUE
+  100 CONTINUE
+  110 CONTINUE
+C
+      IF(IERR)120,130,120
+  120 CONTINUE
+      WRITE(IW,6000)
+      WRITE(IW,6010)IERR
+      WRITE(IW,6020)IEL
+  130 CONTINUE
+ 6000 FORMAT(///33H *** ERROR RETURN FROM PRC830 *** )
+ 6010 FORMAT(/17H     ERROR FLAG =,I3)
+ 6020 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+      RETURN
+      END
+      SUBROUTINE PRL830(PRL,XG,YG,ZG,XII,ETI,NO,NUM,IL,INT1,INT2)
+C
+C     ******************************************************************
+C
+C        E L E M E N T  L I B R A R Y  SUBROUTINE PRL830
+C
+C          PRL830 IS INTEGRATING ALONG A LINE IN A SUBPARAMETRIC
+C          QUADRILATERAL SHELL ELEMENT THE PRODUCT N(I)*NM(J)
+C          WHERE N(I) IS THE ELEMENT SHAPE FUNCTION VALUE FOR NODE I
+C          AND NM(J) IS THE INTEPOLATION VALUE FOR NODE J FOR THE
+C          LINE LOAD DISTRIBUTION
+C          PRL830 IS MADE FOR TO BE CALLED BY SCQS33 IN CONNECTION
+C          WITH CALCULATION OF CONSISTENT NODAL FORCES DUE
+C          TO GIVEN LINE LOAD
+C
+C          PROGRAMMED BY :J.H.WERGELAND  DNV
+C          DATE/VERSION  :29.05.75/01
+C
+C     ******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     PRL(8,3),      XG(8),         YG(8),
+     1              ZG(8),         XII(8),        ETI(8),
+     2              NO(3),         XV(4,4),       WT(4,4),
+     4              DNXI(8),       DNET(8),       NXIET(8),
+     5              NM(3)
+C
+      DOUBLE PRECISION NXIET,NM
+C
+C     NULLIFY ARRAY PRL
+C
+      MEK=8
+      DO 20 I=1,MEK
+      DO 10 J=1,3
+      PRL(I,J)=0.0D0
+   10 CONTINUE
+   20 CONTINUE
+C
+C     SET ABCISSA AND WEIGHT FUNCTIONS FOR THE GIVEN INTEGRATION TYPE
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350269
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(2,3)=0.
+      XV(3,3)=-XV(1,3)
+      XV(1,4)=-.861136312
+      XV(2,4)=-.339981043
+      XV(3,4)=-XV(2,4)
+      XV(4,4)=-XV(1,4)
+C
+      WT(1,1)=2.
+      WT(1,2)=1.
+      WT(2,2)=1.
+      WT(1,3)=.5555555556
+      WT(2,3)=.888888889
+      WT(3,3)=WT(1,3)
+      WT(1,4)=.347854845
+      WT(2,4)=.652145155
+      WT(3,4)=WT(2,4)
+      WT(4,4)=WT(1,4)
+      IF(NUM)30,200,200
+   30 CONTINUE
+C
+C     $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C     START INTEGRATION ON A LINE IN ETA-DIRECTION
+C     $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C
+      DO 150 L=1,INT2
+      ETA=XV(L,INT2)
+      XI=2-IL
+C
+C     CALCULATE ELEMENT SHAPE FUNCTIONS AND THE PARTIAL DERIVATIVES
+C     OF THE SHAPE FUNCTIONS
+C
+      CALL DNI830(DNXI,DNET,NXIET,XI,ETA,XII,ETI)
+C
+C     CALCULATE DISTRIBUTION FUNCTIONS FOR THE LINE LOAD
+C
+      IF(IABS(NUM)-2)50,40,50
+   40 CONTINUE
+C
+C     LINEAR LOAD DISTRIBUTION
+C
+      NOI=NO(1)
+      NM(1)=.5*(1.+ETA*ETI(NOI))
+      NOI=NO(2)
+      NM(2)=.5*(1.+ETA*ETI(NOI))
+      GO TO 60
+   50 CONTINUE
+C
+C     PARABOLIC LINE LOAD DISTRIBUTION
+C
+      DO 55 I=1,3
+      NOI=NO(I)
+      NM(I)=NXIET(NOI)
+   55 CONTINUE
+C
+   60 CONTINUE
+C
+C     CALCULATE THE LINE DIFFERENTIAL IN THE POINT
+C
+      DXDET=0.
+      DYDET=0.
+      DZDET=0.
+      DO 70 I=1,MEK
+      DXDET=DXDET+XG(I)*DNET(I)
+      DYDET=DYDET+YG(I)*DNET(I)
+      DZDET=DZDET+ZG(I)*DNET(I)
+   70 CONTINUE
+      DL=SQRT(DXDET*DXDET+DYDET*DYDET+DZDET*DZDET)
+      COF=DL*WT(L,INT2)
+      IF(IABS(NUM)-2)110,80,110
+   80 DO 100 I=1,MEK
+      DO 90  J=1,2
+      PRL(I,J)=PRL(I,J)+NXIET(I)*NM(J)*COF
+   90 CONTINUE
+  100 CONTINUE
+      GO TO 140
+  110 CONTINUE
+      DO 130 I=1,3
+      IN=NO(I)
+      DO 120 J=1,I
+      PRL(I,J)=PRL(I,J)+NXIET(IN)*NM(J)*COF
+      PRL(J,I)=PRL(I,J)
+  120 CONTINUE
+  130 CONTINUE
+  140 CONTINUE
+  150 CONTINUE
+      GO TO 310
+C
+C     *********************************
+C     START INTEGRATION ALONG A LINE IN XI-DIRECTION
+C     *********************************
+C
+  200 CONTINUE
+      DO 300 L=1,INT1
+      XI=XV(L,INT1)
+      ETA=5-IL
+C
+C     CALCULATE THE ELEMENT SHAPE FUNCTIONS AND THE PARTIAL
+C     DERIVATIVES OF THE SHAPE FUNCTIONS
+C
+      CALL DNI830(DNXI,DNET,NXIET,XI,ETA,XII,ETI)
+C
+C     CALCULATE THE DISTRIBUTION FUNCTIONS FOR THE LINE LOAD
+C
+      IF(NUM-2)220,210,220
+  210 CONTINUE
+C
+C     LINEAR LOAD DISTRIBUTION
+C
+      NOI=NO(1)
+      NM(1)=.5*(1.+XI*XII(NOI))
+      NOI=NO(2)
+      NM(2)=.5*(1.+XI*XII(NOI))
+      GO TO 230
+  220 CONTINUE
+C
+C     PARABOLIC LINE LOAD DISTRIBUTION
+C
+      DO 225 I=1,3
+      NOI=NO(I)
+      NM(I)=NXIET(NOI)
+  225 CONTINUE
+C
+  230 CONTINUE
+C
+C     CALCULATE THE LINE DIFFERENTIAL IN THE INT.POINT
+C
+      DXDXI=0.
+      DYDXI=0.
+      DZDXI=0.
+      DO 240 I=1,MEK
+      DXDXI=DXDXI+XG(I)*DNXI(I)
+      DYDXI=DYDXI+YG(I)*DNXI(I)
+      DZDXI=DZDXI+ZG(I)*DNXI(I)
+  240 CONTINUE
+      COF=SQRT(DXDXI*DXDXI+DYDXI*DYDXI+DZDXI*DZDXI)*WT(L,INT1)
+      IF(NUM-2)280,250,280
+  250 CONTINUE
+      DO 270 I=1,MEK
+      DO 260 J=1,2
+      PRL(I,J)=PRL(I,J)+NXIET(I)*NM(J)*COF
+  260 CONTINUE
+  270 CONTINUE
+      GO TO 300
+  280 CONTINUE
+      DO 290 I=1,3
+      IN=NO(I)
+      DO 285 J=1,I
+      PRL(I,J)=PRL(I,J)+NXIET(IN)*NM(J)*COF
+      PRL(J,I)=PRL(I,J)
+  285 CONTINUE
+  290 CONTINUE
+  300 CONTINUE
+  310 CONTINUE
+      RETURN
+      END
+      SUBROUTINE PRN830(PRN,XG,YG,ZG,TH,XII,ETI,LAMBI,INT1,INT2,ZE,IEL,
+     1                  IW,IERR)
+C
+C     ******************************************************************
+C
+C        E L E M E N T  L I B R A R Y  SUBROUTINE PRN830
+C
+C          PRN830 INTEGRATES OVER A SURFACE (ZE=-1,1 OR 0) OF A SUB-
+C          PARAMETRIC CURVED 8-NODES SHELL ELEMENT THE PRODUCTS
+C          NI*NJ*LX,NI*NJ*LY,NI*NJ*LZ WHERE LX,LY,LZ ARE THE
+C          DIRECTION COSINES FOR THE NORMAL TO THE SURFACE IN THE POINT
+C          REGARDED
+C
+C          PROGRAMMED BY :J.H.WERGELAND
+C          DATE/VERSION  :25.04.75
+C
+C
+C REVISION:
+C     800619   A.S COMPUTAS   KLEM, FERDINAND              RFU: C-80.1-0
+C
+C
+C     ******************************************************************
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     PRN(24,8,3)   ,XG(8),         YG(8),
+     1              ZG(8),         TH(8),         FNOR(3),
+     1              XV(4,4),       WT(4,4),
+     4              DNXI(8),       DNET(8),       NXIET(8),
+     5              J(3,3),        JI(3,3),       LAMBI(8,3,3),
+     6              XII(8),        ETI(8)
+C
+      DOUBLE PRECISION NXIET,J,JI,LAMBI
+C
+C     NULLIFY ARRAY PRN FOR THIS SURFACE
+      MEK=8
+      MP=MEK*3
+      IS=NINT(ZE+2.0)
+      DO 20 I=1,MP
+      DO 10 I1=1,MEK
+      PRN(I,I1,IS)=0.
+   10 CONTINUE
+   20 CONTINUE
+C
+C     SET ABCISSA AND WEIGHTS FUNCTIONS FOR THE GIVEN INTEGRATION TYPE
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350268
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(2,3)=0.
+      XV(3,3)=-XV(1,3)
+      XV(1,4)=-.861136312
+      XV(2,4)=-.339981043
+      XV(3,4)=-XV(2,4)
+      XV(4,4)=-XV(1,4)
+      WT(1,1)=2.
+      WT(2,2)=1.
+      WT(1,2)=1.
+      WT(1,3)=.555555556
+      WT(2,3)=.88888888889
+      WT(3,3)=WT(1,3)
+      WT(1,4)=.347854845
+      WT(2,4)=.652145155
+      WT(3,4)=WT(2,4)
+      WT(4,4)=WT(1,4)
+C
+C     *******************************
+C     START THE GAUSSIAN INTEGRATION LOOP
+C     *******************************
+C
+      DO 110 L=1,INT1
+      DO 100 M=1,INT2
+C
+C     CALCULATE THE PARTIAL DERIVATIVES OF THE SHAPE FUNCTIONS
+C     IN THE INTEGRATION POINT
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+C
+C     CALCULATE THE JACOBIAN MATRIX IN THE INTEGRATION POINT
+      CALL JACO30(J,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZE,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)120,50,50
+   50 CONTINUE
+C
+C     CALCULATE A SURFACE NORMAL IN THE INT.POINT
+C
+      FNOR(1)=J(1,2)*J(2,3)-J(2,2)*J(1,3)
+      FNOR(2)=J(2,1)*J(1,3)-J(1,1)*J(2,3)
+      FNOR(3)=J(1,1)*J(2,2)-J(1,2)*J(2,1)
+C
+C     CALCULATE THE AREA DIFFERENTIAL :D(AREA)=G*DXI*DET
+C
+      G=SQRT(FNOR(1)*FNOR(1)+FNOR(2)*FNOR(2)+FNOR(3)*FNOR(3))
+C
+C     NORMELIZE THE SURFACE NORMAL
+      GI=1./G
+      FNOR(1)=FNOR(1)*GI
+      FNOR(2)=FNOR(2)*GI
+      FNOR(3)=FNOR(3)*GI
+C
+      COF=WT(L,INT1)*WT(M,INT2)*G
+C
+      DO 80 I=1,MEK
+      II=(I-1)*3
+      DO 70 J1=1,I
+      JJ=(J1-1)*3
+      PF=NXIET(I)*NXIET(J1)*COF
+      DO 60 I1=1,3
+      II1=II+I1
+      JJ1=JJ+I1
+      PRN(II1,J1,IS)=PRN(II1,J1,IS)+PF*FNOR(I1)
+      PRN(JJ1,I,IS)=PRN(II1,J1,IS)
+   60 CONTINUE
+   70 CONTINUE
+   80 CONTINUE
+  100 CONTINUE
+  110 CONTINUE
+C
+C     ERROR DETECTED  ERROR EXIT
+C
+      IF(IERR)120,130,120
+  120 CONTINUE
+      WRITE(IW,6000)
+      WRITE(IW,6010)IERR
+      WRITE(IW,6020)IEL
+  130 CONTINUE
+ 6000 FORMAT(///33H *** ERROR RETURN FROM PRN830 *** )
+ 6010 FORMAT(/17H     ERROR FLAG =,I3)
+ 6020 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+      RETURN
+      END
+      SUBROUTINE PRV830(PRV,PRVM,XG,YG,ZG,TH,XII,ETI,LAMBI,INT1,
+     1                  INT2,INT3,IEL,IW,IERR)
+C
+C     ******************************************************************
+C
+C        E L E M E N T  L I B R A R Y  SUBROUTINE PRV830
+C
+C          PRV830 IS INTEGRATING OVER THE VOLUME OF A SUBPARAMETRIC
+C          CURVED 8-NODES SHELL ELEMENT THE PRODUCTS NI*NJ. IN CASE
+C          THE ELEMENT IS CURVED OR HAS THICKNESS VARIATION(NUMERICAL
+C          INTEGRATION IN ZE-DIRECTION) IT ALSO INTEGRATES THE PRODUCTS:
+C          NI*NJ*TI*ZETA*.5*(-V2I,V1I) WHERE V1I AND V2I CONTAINES
+C          DIRECTION COSINES FOR LOCAL X:-AXIS AND Y:-AXIS RESPECTIVELY
+C          IN LOCAL NODE NUMBER I. TI IS THICKNESS IN NODE I
+C
+C          PRV830 IS MADE TO BE CALLED BY SCQS33
+C
+C
+C          PROGRAMMED BY :J.H.WERGELAND
+C
+C          DATE/VERSION  1.05.75/01
+C
+C     ******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     PRV(8,8),      PRVM(16,24),   XG(8),         YG(8),
+     1              ZG(8),         TH(8),         XII(8),        ETI(8),
+     2              LAMBI(8,3,3),  WT(4,4),       XV(4,4),
+     3              DNET(8),       NXIET(8),      J(3,3),
+     5              DNXI(8),       JI(3,3)
+C
+      DOUBLE PRECISION LAMBI,J,JI,NXIET
+C
+C
+C     NULLIFY ARRAYS PRV AND PRVM
+C
+      MEK=8
+      DO 40 I=1,MEK
+      DO 30 I1=1,MEK
+      PRV(I,I1)=0.
+      II=(I-1)*2
+      II1=(I1-1)*3
+      DO 20 I2=1,2
+      DO 10 I3=1,2
+      IC=II1+I2
+      IL=II+I3
+      PRVM(IL,IC)=0.
+   10 CONTINUE
+   20 CONTINUE
+   30 CONTINUE
+   40 CONTINUE
+C
+C     SET ABCISSA AND WEIGHT FUNCTIONS FOR THE GIVEN INTEGRATION TYPE
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350269
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(2,3)=0.
+      XV(3,3)=-XV(1,3)
+      XV(1,4)=-.861136312
+      XV(2,4)=-.339981043
+      XV(3,4)=-XV(2,4)
+      XV(4,4)=-XV(1,4)
+C
+      WT(1,1)=2.
+      WT(1,2)=1.
+      WT(2,2)=1.
+      WT(1,3)=.5555555556
+      WT(2,3)=.888888889
+      WT(3,3)=WT(1,3)
+      WT(1,4)=.347854845
+      WT(2,4)=.652145155
+      WT(3,4)=WT(2,4)
+      WT(4,4)=WT(1,4)
+C
+C     TEST IF NUMERICAL INTEGRATION IN ZETA DIRECTION IS NECESSARLY
+C
+C     TEST IF ELEMENT IS CURVED
+C
+      SUM=0.
+      INT3=1
+      DO 70 I=2,MEK
+      SUM=SUM+(LAMBI(1,3,1)*LAMBI(I,3,1)+LAMBI(1,3,2)*LAMBI(I,3,2)
+     1+LAMBI(1,3,3)*LAMBI(I,3,3))
+   70 CONTINUE
+      IF(SUM-6.95)75,75,80
+   75 INT3=2
+      GO TO 100
+   80 CONTINUE
+C
+C     TEST IF THICKNESS VARIATION
+C
+      THMID=0.
+      DO 85 I=1,MEK
+   85 THMID=THMID+TH(I)
+      THMID=THMID/MEK
+      THMIDI=1./THMID
+      RDTH=0.
+      DO 95 I=1,MEK
+      DELTH=ABS(TH(I)-THMID)*THMIDI
+      IF(DELTH-RDTH)95,95,90
+   90 RDTH=DELTH
+   95 CONTINUE
+      IF(RDTH-.05)100,100,75
+  100 CONTINUE
+C
+C     *****
+C     START GAUSSIAN INTEGRATION LOOP
+C     ****
+      DO 400 L=1,INT1
+      DO 350 M=1,INT2
+C
+C     COMPUTE THE SHAPE FUNCTION IN THE INTEGRATION POINT
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+      DO 300 N=1,INT3
+      ZETA=XV(N,INT3)
+C
+C     COMPUTE THE JACOBIAN DETERMINANT IN THE INT.POINT
+C
+      CALL JACO30(J,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZETA,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)510,110,110
+  110 CONTINUE
+C
+      COF=DETJ*WT(L,INT1)*WT(M,INT2)
+C
+C     START LOOP ON ELEMENT NODES
+C
+      COF2=COF*2
+      DO 160 I=1,MEK
+      DO 150 J1=1,I
+      IF(INT3-1)120,120,130
+  120 PRV(I,J1)=PRV(I,J1)+NXIET(I)*NXIET(J1)*COF2
+      GO TO 140
+  130 PRV(I,J1)=PRV(I,J1)+NXIET(I)*NXIET(J1)*COF
+  140 CONTINUE
+      PRV(J1,I)=PRV(I,J1)
+  150 CONTINUE
+  160 CONTINUE
+      IF(INT3-1)230,230,170
+  170 COF2=.5*COF*ZETA
+      DO 220 I=1,MEK
+      II=(I-1)*2
+      DO 210 J1=1,MEK
+      PF=COF2*NXIET(I)*NXIET(J1)
+      JJ=(J1-1)*3
+      ISIGN=-1
+      DO 200 I1=1,2
+      ILA=3-I1
+      II1=II+I1
+      DO 190 JJ1=1,3
+      JJJ=JJ+JJ1
+      PRVM(II1,JJJ)=PRVM(II1,JJJ)+PF*LAMBI(I,ILA,JJ1)*ISIGN
+  190 CONTINUE
+      ISIGN=-ISIGN
+  200 CONTINUE
+  210 CONTINUE
+  220 CONTINUE
+  230 CONTINUE
+  300 CONTINUE
+  350 CONTINUE
+  400 CONTINUE
+C
+C     ERROR DETECTED. ERROR EXIT
+C
+      IF(IERR)510,520,510
+  510 WRITE(IW,6000)
+      WRITE(IW,6010)IERR
+      WRITE(IW,6020)IEL
+  520 CONTINUE
+ 6000 FORMAT(///33H *** ERROR RETURN FROM PRV830 *** )
+ 6010 FORMAT(/17H     ERROR FLAG =,I3)
+ 6020 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+      RETURN
+      END
+      SUBROUTINE SCQS30(XG,YG,ZG,IEL,ICODIR,XII,ETI,LAMBI,IPSW,IW,IERR)
+C
+C     ******************************************************************
+C
+C         E L E M E N T  L I B R A R Y  SUBROUTINE: SCQS30
+C
+C
+C           SCQS30 GENERATES THE NODAL LOCAL-TO-GLOBAL TRANSFORMATION
+C           MATRICES FOR A 8-NODED SUBPARAMETRIC CURVED QUADRILATERAL
+C           SHELL ELEMENT WITH 5 DEGREES OF FREEDOM IN EACH NODE.
+C
+C           PROGRAMMED BY : K.M.OKSTAD
+C
+C           DATE/VERSION  : 27.01.2021 / 01
+C
+C     ******************************************************************
+C
+      IMPLICIT          NONE
+      INTEGER           IEL, ICODIR, IPSW, IW, IERR
+      DOUBLE PRECISION  XG(8),YG(8),ZG(8), XII(8),ETI(8), LAMBI(8,3,3)
+C
+      INTEGER           I
+      DOUBLE PRECISION  DNXI(8), DNET(8), DNZE(8)
+C
+C     ESTABLISH THE ARRAYS XII AND ETI CONTAINING NODAL VALUES OF THE
+C     CURVELINEAR COORDINATES
+C
+      XII(1) =-1.0D0
+      XII(2) = 0.0D0
+      XII(3) = 1.0D0
+      XII(4) = 1.0D0
+      XII(5) = 1.0D0
+      XII(6) = 0.0D0
+      XII(7) =-1.0D0
+      XII(8) =-1.0D0
+C
+      ETI(1) =-1.0D0
+      ETI(2) =-1.0D0
+      ETI(3) =-1.0D0
+      ETI(4) = 0.0D0
+      ETI(5) = 1.0D0
+      ETI(6) = 1.0D0
+      ETI(7) = 1.0D0
+      ETI(8) = 0.0D0
+C
+C     CALCULATE THE DIRECTION COSINE MATRIX
+C     FOR THE LOCAL NODE COORDINATE SYSTEMS
+C
+      DO 10 I=1,8
+      CALL DNI830(DNXI,DNET,DNZE,XII(I),ETI(I),XII,ETI)
+      CALL RCOS30(XG,YG,ZG,DNXI,DNET,LAMBI,IEL,I,8,ICODIR,IPSW,IW,IERR)
+      IF(IERR)900,10,10
+   10 CONTINUE
+  900 RETURN
+      END
+      SUBROUTINE SCQS31(EK,XG,YG,ZG,TH,IEL,YOUNG,RNY,ICODIR,INT1,INT2,
+     1                  LAMBI,IPSW,IW,IERR)
+C
+C     ******************************************************************
+C
+C         E L E M E N T  L I B R A R Y  SUBROUTINE: SCQS31
+C
+C
+C           SCQS31 GENERATES THE STIFFNESS MATRIX FOR A 8-NODES
+C           SUBPARAMETRIC CURVED QUADRILATERAL SHELL ELEMENT WITH
+C           5 DEGREES OF FREEDOM IN EACH NODE.
+C           THE STIFFNESS MATRIX IS REFERRED TO GLOBAL CARTESIAN
+C           COORDINATE SYSTEM WITH RESPECT TO TRANSLATION-AND FORCE
+C           COMPONENTS AND LOCAL NODE-COORDINATE SYSTEM WHEN ROTATION
+C           AND MOMENT-COMPONENTS CONCERNED
+C
+C           PROGRAMMED BY : J.H.WERGELAND
+C
+C           DATE/VERSION  : 31.10.73 / 01
+C
+C     ******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     EK(40,40)     ,C(8)          ,XII(8)        ,
+     1              ETI(8)        ,
+     2              WT(4,4)       ,DNXI(8)       ,DNET(8)       ,
+     3              NXIET(8)      ,LAMBI(8,3,3)  ,
+     4              JA(3,3)       ,JI(3,3)       ,
+     5              XG(8)         ,YG(8)         ,ZG(8)         ,
+     6              TET(3,3)      ,TH(8)         ,
+     7              A(3,3)        ,A1(8,3,5)     ,A2(8,2,5)     ,
+     8              A3(8,3,5)     ,A4(8,2,5)     ,A5(8,3,5)     ,
+     9              A6(8,3,5)     ,A7(8,2,5)     ,B(8,3)        ,
+     1              D(5,5)        ,XV(4,4)       ,EK11(3,3)     ,
+     2              EK12(3,2)     ,EK21(2,3)     ,EK22(2,2)
+C
+      DOUBLE PRECISION  JA,JI,LAMBI,NXIET
+C
+      PARAMETER ( MEK=8, NEK=5*MEK )
+C
+      IERR=0
+C
+      DO 20 I1=1,NEK
+      DO 10 I2=1,NEK
+      EK(I1,I2)=0.
+   10 CONTINUE
+   20 CONTINUE
+C
+C     PRINT ?
+C
+      IF(IPSW-2)35,30,30
+   30 WRITE(IW,6000)IEL
+      WRITE(IW,6001)ICODIR,INT1,INT2
+      WRITE(IW,6010)YOUNG,RNY
+      WRITE(IW,6020)(I,TH(I),I=1,MEK)
+      WRITE(IW,6030)(I,XG(I),I,YG(I),I,ZG(I),I=1,MEK)
+C
+   35 CONTINUE
+C
+C     TEST IF THE ELEMENT IS DEGENERATED
+C
+      CALL CHQA30(XG,YG,ZG,IERR)
+      IF(IERR)465,40,40
+C
+C     CONSTANTS USED IN THE ROUTINE
+C
+C     THE ELASTICITY MATRIX D
+C
+   40 CONTINUE
+      D(1,1)=YOUNG/(1.-RNY*RNY)
+      D(2,2)=D(1,1)
+      D(1,2)=D(1,1)*RNY
+      D(2,1)=D(1,2)
+      D(3,3)=D(1,1)*(1.-RNY)*.5
+      D(4,4)=D(1,1)*(1.-RNY)/2.4
+      D(5,5)=D(4,4)
+C
+C     ABSCISSA IN GAUSSIAN QUADRATURE INTEGRATION
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350269
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(3,3)=-XV(1,3)
+C
+C     WEIGHT COEFFICIENTS OF THE GAUSSIAN QUADRATURE FORMULA
+C
+      WT(1,1)=2.
+      WT(1,2)=1.
+      WT(2,2)=1.
+      WT(1,3)=.55555556
+      WT(2,3)=.88888889
+      WT(3,3)=WT(1,3)
+C
+C     CALCULATE DIRECTION COSINE MATRICES
+C     FOR THE LOCAL NODE COORDINATE SYSTEMS
+C
+      CALL SCQS30(XG,YG,ZG,IEL,ICODIR,XII,ETI,LAMBI,IPSW,IW,IERR)
+      IF(IERR)465,45,45
+   45 CONTINUE
+C
+C     TEST IF NUMERICAL INTEGRATION IN ZE-DIRECTION IS NECESSARLY
+C
+      INT3=1
+C
+C     TEST IF THE ELEMENT IS CURVED
+C
+      SUM=0.
+      DO 50 I=2,MEK
+      SUM=SUM+(LAMBI(1,3,1)*LAMBI(I,3,1)+LAMBI(1,3,2)*LAMBI(I,3,2)+
+     1         LAMBI(1,3,3)*LAMBI(I,3,3))
+   50 CONTINUE
+      IF(SUM-6.95)60,60,70
+   60 INT3=2
+   70 CONTINUE
+C
+C     TEST IF LARGE THICKNESS VARIATIONS THROUGHOUT  THE ELEMENT
+C
+      THMID=0.
+      DO 80 I=1,MEK
+   80 THMID=THMID+TH(I)
+      THMID=THMID*.125
+      THMIDI=1/THMID
+      RDTH=0
+      DO 100  I=1,MEK
+      DELTH=ABS(TH(I)-THMID)*THMIDI
+      IF(DELTH-RDTH) 100,100,90
+   90 RDTH=DELTH
+  100 CONTINUE
+      IF(RDTH-.05)120,120,110
+  110 INT3=2
+  120 CONTINUE
+C
+C
+C     THE GAUSSIAN QUADRATURE INTEGRATION COMPUTING THE STIFFNESS MATRIX
+C
+      DO 460 L=1,INT1
+      DO 450 M=1,INT2
+C
+C     COMPUTE THE SHAPE-FUNCTION AND THE PARTIAL DERIVATIVES OF
+C     THE SHAPE FUNCTION
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+C
+C     START INTEGRATION LOOP IN ZETA
+C
+      DO 440 N=1,INT3
+      ZETA=XV(N,INT3)
+C
+C     COMPUTE THE JACOBIAN MATRIX,ITS INVERSE AND ITS DETERMINANT
+C
+      CALL JACO30(JA,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZETA,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)465,150,150
+C
+C
+C     COMPUTE THE DIRECTION COSINE MATRIX TET FOR THE LOCAL X',Y' AND Z'
+C     AXIS IN THE INTEGRATION POINT
+C
+  150 CONTINUE
+C
+      IF(ICODIR)170,170,160
+  160 CONTINUE
+      TET(1,3)=JA(1,2)*JA(2,3)-JA(2,2)*JA(1,3)
+      TET(2,3)=JA(2,1)*JA(1,3)-JA(1,1)*JA(2,3)
+      TET(3,3)=JA(1,1)*JA(2,2)-JA(2,1)*JA(1,2)
+      RL=SQRT(TET(1,3)*TET(1,3)+TET(2,3)*TET(2,3)+TET(3,3)*TET(3,3))
+      RL1=1./RL
+      TET(1,3)=TET(1,3)*RL1
+      TET(2,3)=TET(2,3)*RL1
+      TET(3,3)=TET(3,3)*RL1
+      CALL LNCS30(TET,ICODIR,IW,IERR)
+      IF(IERR)465,190,190
+C
+  170 CONTINUE
+      TET(1,1)=JA(1,1)
+      TET(2,1)=JA(1,2)
+      TET(3,1)=JA(1,3)
+C
+      TET(1,3)=JA(1,2)*JA(2,3)-JA(2,2)*JA(1,3)
+      TET(2,3)=JA(2,1)*JA(1,3)-JA(1,1)*JA(2,3)
+      TET(3,3)=JA(1,1)*JA(2,2)-JA(2,1)*JA(1,2)
+C
+      TET(1,2)=TET(2,3)*TET(3,1)-TET(2,1)*TET(3,3)
+      TET(2,2)=TET(1,1)*TET(3,3)-TET(1,3)*TET(3,1)
+      TET(3,2)=TET(1,3)*TET(2,1)-TET(1,1)*TET(2,3)
+C
+C     NORMELIZE TET
+C
+      RL1=SQRT(TET(1,1)*TET(1,1)+TET(2,1)*TET(2,1)+TET(3,1)*TET(3,1))
+      RL2=SQRT(TET(1,2)*TET(1,2)+TET(2,2)*TET(2,2)+TET(3,2)*TET(3,2))
+      RL3=SQRT(TET(1,3)*TET(1,3)+TET(2,3)*TET(2,3)+TET(3,3)*TET(3,3))
+      RL1=1./RL1
+      RL2=1./RL2
+      RL3=1./RL3
+      DO 180 I=1,3
+      TET(I,1)=TET(I,1)*RL1
+      TET(I,2)=TET(I,2)*RL2
+      TET(I,3)=TET(I,3)*RL3
+  180 CONTINUE
+  190 CONTINUE
+C     CALCULATE A=(TET)'*JI
+C
+      A(1,1)=TET(1,1)*JI(1,1)+TET(2,1)*JI(2,1)+TET(3,1)*JI(3,1)
+      A(1,2)=TET(1,1)*JI(1,2)+TET(2,1)*JI(2,2)+TET(3,1)*JI(3,2)
+      A(2,1)=TET(1,2)*JI(1,1)+TET(2,2)*JI(2,1)+TET(3,2)*JI(3,1)
+      A(2,2)=TET(1,2)*JI(1,2)+TET(2,2)*JI(2,2)+TET(3,2)*JI(3,2)
+      A(3,1)=0.
+      A(3,2)=0.
+      A(3,3)=TET(1,3)*JI(1,3)+TET(2,3)*JI(2,3)+TET(3,3)*JI(3,3)
+      IF(RDTH-.05)200,200,195
+  195 CONTINUE
+C
+C     ADDITION TO A IF THICKNESS VARIATION
+C
+      A(3,1)=TET(1,3)*JI(1,1)+TET(2,3)*JI(2,1)+TET(3,3)*JI(3,1)
+      A(3,2)=TET(1,3)*JI(1,2)+TET(2,3)*JI(2,2)+TET(3,3)*JI(3,2)
+  200 CONTINUE
+C
+C
+C     CALCULATE THE ARRAYS A1,A2,A3,A4,A5,A6 AND A7
+C
+C
+      DO 240 I=1,MEK
+      B(I,1)=A(1,1)*DNXI(I)+A(1,2)*DNET(I)
+      B(I,2)=A(2,1)*DNXI(I)+A(2,2)*DNET(I)
+      C(I)=A(3,3)*NXIET(I)
+C
+C     COMPUTE A1=TET*BI'
+C
+      A1(I,1,1)=TET(1,1)*B(I,1)
+      A1(I,1,2)=TET(1,2)*B(I,2)
+      A1(I,1,3)=TET(1,1)*B(I,2)+TET(1,2)*B(I,1)
+      A1(I,1,4)=TET(1,3)*B(I,1)
+      A1(I,1,5)=TET(1,3)*B(I,2)
+      A1(I,2,1)=TET(2,1)*B(I,1)
+      A1(I,2,2)=TET(2,2)*B(I,2)
+      A1(I,2,3)=TET(2,1)*B(I,2)+TET(2,2)*B(I,1)
+      A1(I,2,4)=TET(2,3)*B(I,1)
+      A1(I,2,5)=TET(2,3)*B(I,2)
+      A1(I,3,1)=TET(3,1)*B(I,1)
+      A1(I,3,2)=TET(3,2)*B(I,2)
+      A1(I,3,3)=TET(3,1)*B(I,2)+TET(3,2)*B(I,1)
+      A1(I,3,4)=TET(3,3)*B(I,1)
+      A1(I,3,5)=TET(3,3)*B(I,2)
+      IF(RDTH-.05)202,202,201
+  201 CONTINUE
+C
+C     ADDITION TO A1 IF THICKNESS VARIATION
+C
+      B(I,3)=A(3,1)*DNXI(I)+A(3,2)*DNET(I)
+      A1(I,1,4)=A1(I,1,4)+TET(1,1)*B(I,3)
+      A1(I,1,5)=A1(I,1,5)+TET(1,2)*B(I,3)
+      A1(I,2,4)=A1(I,2,4)+TET(2,1)*B(I,3)
+      A1(I,2,5)=A1(I,2,5)+TET(2,2)*B(I,3)
+      A1(I,3,4)=A1(I,3,4)+TET(3,1)*B(I,3)
+      A1(I,3,5)=A1(I,3,5)+TET(3,2)*B(I,3)
+  202 CONTINUE
+C
+C     COMPUTE A2=FI'*A1
+C
+C
+      DO 205 J=1,5
+      A2(I,2,J)=LAMBI(I,1,1)*A1(I,1,J)+LAMBI(I,1,2)*A1(I,2,J)+LAMBI(I,1,
+     13)*A1(I,3,J)
+      A2(I,1,J)=-LAMBI(I,2,1)*A1(I,1,J)-LAMBI(I,2,2)*A1(I,2,J)-LAMBI(I,2
+     1,3)*A1(I,3,J)
+  205 CONTINUE
+C
+C     COMPUTE A3=TET*CI'
+C
+      A3(I,1,4)=TET(1,1)*C(I)
+      A3(I,1,5)=TET(1,2)*C(I)
+      A3(I,2,4)=TET(2,1)*C(I)
+      A3(I,2,5)=TET(2,2)*C(I)
+      A3(I,3,4)=TET(3,1)*C(I)
+      A3(I,3,5)=TET(3,2)*C(I)
+C
+C     COMPUTE A4=FI'*A3
+C
+      DO 210 J=4,5
+      A4(I,2,J)=LAMBI(I,1,1)*A3(I,1,J)+LAMBI(I,1,2)*A3(I,2,J)+LAMBI(I,1,
+     13)*A3(I,3,J)
+      A4(I,1,J)=-LAMBI(I,2,1)*A3(I,1,J)-LAMBI(I,2,2)*A3(I,2,J)-LAMBI(I,2
+     1,3)*A3(I,3,J)
+  210 CONTINUE
+C
+C     COMPUTE A5=A1*D
+C
+      DO 220 J=1,3
+      A5(I,J,1)=A1(I,J,1)*D(1,1)+A1(I,J,2)*D(2,1)
+      A5(I,J,2)=A1(I,J,1)*D(1,2)+A1(I,J,2)*D(2,2)
+      A5(I,J,3)=A1(I,J,3)*D(3,3)
+      A5(I,J,4)=A1(I,J,4)*D(4,4)
+      A5(I,J,5)=A1(I,J,5)*D(5,5)
+  220 CONTINUE
+C
+C     COMPUTE A6=A4*D
+C
+      A6(I,1,4)=A4(I,1,4)*D(4,4)
+      A6(I,1,5)=A4(I,1,5)*D(5,5)
+      A6(I,2,4)=A4(I,2,4)*D(4,4)
+      A6(I,2,5)=A4(I,2,5)*D(5,5)
+C
+C     COMPUTE A7=A2*D
+C
+      DO 230 J=1,2
+      A7(I,J,1)=A2(I,J,1)*D(1,1)+A2(I,J,2)*D(2,1)
+      A7(I,J,2)=A2(I,J,1)*D(1,2)+A2(I,J,2)*D(2,2)
+      A7(I,J,3)=A2(I,J,3)*D(3,3)
+      A7(I,J,4)=A2(I,J,4)*D(4,4)
+      A7(I,J,5)=A2(I,J,5)*D(5,5)
+  230 CONTINUE
+C
+  240 CONTINUE
+      IF(INT3-1) 340,250,340
+  250 CONTINUE
+C
+C     ANALYTICAL INTEGRATION IN ZETA
+C
+C
+      COF=WT(L,INT1)*WT(M,INT2)*DETJ
+C
+      DO 330 J=1,MEK
+C
+      NS=J*5-5
+C
+      DO 320 I=1,J
+C
+      NL=I*5-5
+C
+C     COMPUTE THE UPPER 3*3 SUB-MATRICES IN EK
+C
+      COF1=2.*COF
+      DO 265 II=1,3
+      DO 260 JJ=1,3
+      EK11(JJ,II)=A5(I,JJ,1)*A1(J,II,1)+A5(I,JJ,2)*A1(J,II,2)+A5(I,JJ,3)
+     1*A1(J,II,3)+A5(I,JJ,4)*A1(J,II,4)+A5(I,JJ,5)*A1(J,II,5)
+      EK(NL+JJ,NS+II)=EK11(JJ,II)*COF1+EK(NL+JJ,NS+II)
+  260 CONTINUE
+  265 CONTINUE
+C
+C     COMPUTE THE 3*2 SUB-MATRICES IN EK
+C
+      EK12(1,1)=A5(I,1,4)*A4(J,1,4)+A5(I,1,5)*A4(J,1,5)
+      EK12(1,2)=A5(I,1,4)*A4(J,2,4)+A5(I,1,5)*A4(J,2,5)
+      EK12(2,1)=A5(I,2,4)*A4(J,1,4)+A5(I,2,5)*A4(J,1,5)
+      EK12(2,2)=A5(I,2,4)*A4(J,2,4)+A5(I,2,5)*A4(J,2,5)
+      EK12(3,1)=A5(I,3,4)*A4(J,1,4)+A5(I,3,5)*A4(J,1,5)
+      EK12(3,2)=A5(I,3,4)*A4(J,2,4)+A5(I,3,5)*A4(J,2,5)
+C
+      COF1=TH(J)*COF
+      DO 275 II=1,2
+      DO 270 JJ=1,3
+      EK(NL+JJ,NS+II+3)=EK12(JJ,II)*COF1+EK(NL+JJ,NS+II+3)
+  270 CONTINUE
+  275 CONTINUE
+C
+C     COMPUTE THE THE 2*3 SUB-MATRICES IN EK
+C
+      EK21(1,1)=A6(I,1,4)*A1(J,1,4)+A6(I,1,5)*A1(J,1,5)
+      EK21(1,2)=A6(I,1,4)*A1(J,2,4)+A6(I,1,5)*A1(J,2,5)
+      EK21(1,3)=A6(I,1,4)*A1(J,3,4)+A6(I,1,5)*A1(J,3,5)
+      EK21(2,1)=A6(I,2,4)*A1(J,1,4)+A6(I,2,5)*A1(J,1,5)
+      EK21(2,2)=A6(I,2,4)*A1(J,2,4)+A6(I,2,5)*A1(J,2,5)
+      EK21(2,3)=A6(I,2,4)*A1(J,3,4)+A6(I,2,5)*A1(J,3,5)
+C
+      COF2=TH(I)*COF
+      DO 290 II=1,3
+      NSS=NS+II
+      DO 280 JJ=1,2
+      NLL=NL+JJ+3
+      EK(NLL,NSS)=COF2*EK21(JJ,II)+EK(NLL,NSS)
+  280 CONTINUE
+  290 CONTINUE
+C
+C     COMPUTE THE 2*2 SUBMATRICES IN EK
+C
+      EK22(1,1)=.1666666666666667*(A7(I,1,1)*A2(J,1,1)+A7(I,1,2)*A2(J,1,
+     12)+A7(I,1,3)*A2(J,1,3)+A7(I,1,4)*A2(J,1,4)+A7(I,1,5)*A2(J,1,5))+
+     2.5*(A6(I,1,4)*A4(J,1,4)+A6(I,1,5)*A4(J,1,5))
+      EK22(1,2)=.1666666666666667*(A7(I,1,1)*A2(J,2,1)+A7(I,1,2)*A2(J,2,
+     12)+A7(I,1,3)*A2(J,2,3)+A7(I,1,4)*A2(J,2,4)+A7(I,1,5)*A2(J,2,5))+
+     2.5*(A6(I,1,4)*A4(J,2,4)+A6(I,1,5)*A4(J,2,5))
+      EK22(2,1)=.1666666666666667*(A7(I,2,1)*A2(J,1,1)+A7(I,2,2)*A2(J,1,
+     12)+A7(I,2,3)*A2(J,1,3)+A7(I,2,4)*A2(J,1,4)+A7(I,2,5)*A2(J,1,5))+
+     2.5*(A6(I,2,4)*A4(J,1,4)+A6(I,2,5)*A4(J,1,5))
+      EK22(2,2)=.1666666666666667*(A7(I,2,1)*A2(J,2,1)+A7(I,2,2)*A2(J,2,
+     12)+A7(I,2,3)*A2(J,2,3)+A7(I,2,4)*A2(J,2,4)+A7(I,2,5)*A2(J,2,5))+
+     2.5*(A6(I,2,4)*A4(J,2,4)+A6(I,2,5)*A4(J,2,5))
+C
+      COF3=TH(I)*TH(J)*COF
+      DO 310 II=1,2
+      DO 300 JJ=1,2
+      NLL=NL+JJ+3
+      NSS=NS+II+3
+      EK(NLL,NSS)=COF3*EK22(JJ,II)+EK(NLL,NSS)
+  300 CONTINUE
+  310 CONTINUE
+C
+  320 CONTINUE
+  330 CONTINUE
+C
+      GO TO 430
+  340 CONTINUE
+C
+C
+C
+C     NUMERICAL  INTEGRATION IN ZETA
+C     THICKNESS VARIATION IS CONSIDERABLE
+C     OR THE ELEMENT IS CURVED
+C
+      COF=WT(L,INT1)*WT(M,INT2)*DETJ
+C
+      DO 420  J=1,MEK
+      NS=J*5-5
+      COF22=TH(J)*.5*COF
+      COF21=COF22*ZETA
+      DO 410  I=1,J
+C
+      NL=I*5-5
+C
+C     COMPUTE THE  UPPER 3*3 SUBMATRICES IN EK
+C
+      DO 360 II=1,3
+      NSS=NS+II
+      DO 350 JJ=1,3
+      NLL=NL+JJ
+      EK(NLL,NSS)=EK(NLL,NSS)+
+     1           (A5(I,JJ,1)*A1(J,II,1)+A5(I,JJ,2)*A1(J,II,2)+A5(I,JJ,3)
+     2            *A1(J,II,3)+A5(I,JJ,4)*A1(J,II,4)+A5(I,JJ,5)*A1(J,II,5
+     3            ))*COF
+  350 CONTINUE
+  360 CONTINUE
+C
+C     COMPUTE THE UPPER 3*2 AND THE LOWER 2*3 SUBMATRICES IN EK
+C
+      COF12=TH(I)*.5*COF
+      COF11=COF12*ZETA
+      DO 380 II=1,3
+      NSS1=NS+II
+      NLL2=NL+II
+      DO 370 JJ=1,2
+      NLL1=NL+3+JJ
+      NSS2=NS+3+JJ
+      EK(NLL1,NSS1)=EK(NLL1,NSS1)+
+     1   COF11*(A7(I,JJ,1)*A1(J,II,1)+A7(I,JJ,2)*A1(J,II,2) +
+     2          A7(I,JJ,3)*A1(J,II,3)+A7(I,JJ,4)*A1(J,II,4)+
+     3          A7(I,JJ,5)*A1(J,II,5))  +
+     4   COF12*(A6(I,JJ,4)*A1(J,II,4)+A6(I,JJ,5)*A1(J,II,5))
+      EK(NLL2,NSS2)=EK(NLL2,NSS2)+
+     1   COF21*(A5(I,II,1)*A2(J,JJ,1)+A5(I,II,2)*A2(J,JJ,2)+
+     2          A5(I,II,3)*A2(J,JJ,3)+A5(I,II,4)*A2(J,JJ,4)+
+     3          A5(I,II,5)*A2(J,JJ,5))+
+     4   COF22*(A5(I,II,4)*A4(J,JJ,4)+A5(I,II,5)*A4(J,JJ,5))
+  370 CONTINUE
+  380 CONTINUE
+C     COMPUTE THE LOWER 2*2 SUBMATRICES IN EK
+C
+      COF1=TH(I)*TH(J)*.25*COF
+      COF2=COF1*ZETA
+      COF3=COF2*ZETA
+      DO 400 II=1,2
+      NSS=NS+II+3
+      DO 390 JJ=1,2
+      NLL=NL+JJ+3
+      EK(NLL,NSS)=EK(NLL,NSS)+
+     1   COF3*(A7(I,JJ,1)*A2(J,II,1)+A7(I,JJ,2)*A2(J,II,2)+
+     2         A7(I,JJ,3)*A2(J,II,3)+A7(I,JJ,4)*A2(J,II,4)+
+     3         A7(I,JJ,5)*A2(J,II,5))+
+     4   COF1*(A6(I,JJ,4)*A4(J,II,4)+A6(I,JJ,5)*A4(J,II,5))+
+     5   COF2*(A7(I,JJ,4)*A4(J,II,4)+A7(I,JJ,5)*A4(J,II,5)+
+     6         A6(I,JJ,4)*A2(J,II,4)+A6(I,JJ,5)*A2(J,II,5))
+  390 CONTINUE
+  400 CONTINUE
+  410 CONTINUE
+  420 CONTINUE
+C
+  430 CONTINUE
+C
+  440 CONTINUE
+  450 CONTINUE
+  460 CONTINUE
+C
+C     LOWER PART OF THE STIFFNESS MATRIX
+      DO 462 I1=2,NEK
+      DO 461 I2=1,I1-1
+      EK(I1,I2)=EK(I2,I1)
+  461 CONTINUE
+  462 CONTINUE
+C
+C     ERROR DETECTED
+C
+      IF(IERR)465,470,470
+  465 WRITE(IW,6040)
+      WRITE(IW,6050)IERR
+      WRITE(IW,6060)IEL
+  470 CONTINUE
+      IF(IPSW-2)490,480,480
+  480 CONTINUE
+      WRITE(IW,6080)
+      CALL MPRT30(EK,NEK,NEK,IW)
+      WRITE(IW,6070)IEL
+  490 CONTINUE
+C
+ 6000 FORMAT(///29H ENTERING SCQS31 FOR ELEMENT ,I7,2H :)
+ 6001 FORMAT(11H   ICODIR =,I2 / 11H     INT1 =,I2 / 11H     INT2 =,I2)
+ 6010 FORMAT(12H     E    = ,1PE12.5,12H     NY   = ,1PE12.5)
+ 6020 FORMAT(7H     TH,I1,4H  = ,1PE12.5)
+ 6030 FORMAT(7H     XG,I1,4H  = ,1PE12.5,
+     1       7H     YG,I1,4H  = ,1PE12.5,
+     2       7H     ZG,I1,4H  = ,1PE12.5)
+ 6040 FORMAT(///33H *** ERROR RETURN FROM SCQS31 *** )
+ 6050 FORMAT(/17H     ERROR FLAG =,I3)
+ 6060 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+ 6070 FORMAT(/28H LEAVING SCQS31 FOR ELEMENT ,I7)
+ 6080 FORMAT(/29H     ELEMENT STIFFNESS MATRIX)
+C
+      RETURN
+      END
+      SUBROUTINE SCQS32(SIG,LAMP,XG,YG,ZG,TH,IEL,YOUNG,RNY,XI,ET,ZE,
+     1                  XII,ETI,LAMBI,ICODIR,IPSW,IW,IERR)
+C
+C     ******************************************************************
+C
+C         E L E M E N T  L I B R A R Y  SUBROUTINE: SCQS32
+C
+C
+C           SCQS32 GENERATES THE STRESS MATRIX SIG FOR A 8-NODES
+C           SUBPARAMETRIC CURVED QUADRILATERAL SHELL ELEMENT WITH
+C           5 DEGREES OF FREEDOM IN EACH NODE.
+C           THE STRESS MATRIX GIVES STRESS IN LOCAL COORDINATE SYSTEM
+C           FOR THE POINT. COMPONENTS IN THE STRESS MATRIX RELATED TO
+C           TRANSLATIONS ARE RELATED TO TRANSLATIONS IN GLOBAL COORDI-
+C           NATE SYSTEM AND TO LOCAL NODE COORDINATE SYSTEMS WHEN
+C           RELATIONS TO ROTATIONS CONCERNED.
+C
+C           PROGRAMMED BY : J.H.WERGELAND
+C
+C           DATE/VERSION  : 15.11.73/01
+C
+C     ******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DOUBLE PRECISION LAMBI,LAMP,JA,JI,NXIET
+      DIMENSION     XG(8)         ,YG(8)         ,ZG(8)         ,
+     1              DNXI(8)       ,DNET(8)       ,NXIET(8)      ,
+     2              XII(8)        ,ETI(8)        ,
+     3              TH(8)         ,JA(3,3)       ,JI(3,3)       ,
+     4              LAMBI(8,3,3)  ,LAMP(3,3)     ,SIG(5,40)     ,
+     5              D(5,5)        ,A(3,3)        ,
+     6              A1(8,5,3)     ,A2(8,5,2)     ,A3(8,5,3)     ,
+     7              A4(8,5,2)     ,B(8,3)        ,C(8)          ,
+     8              A5(8,5,3)     ,A6(8,5,2)     ,A7(8,5,2)
+C
+      PARAMETER ( MEK=8 )
+C
+      IERR=0
+C
+C     PRINT ?
+C
+      IF(IPSW-2) 20,10,10
+   10 WRITE(IW,6000)IEL
+      WRITE(IW,6001)ICODIR
+      WRITE(IW,6010)YOUNG,RNY
+      WRITE(IW,6020)(I,TH(I),I=1,MEK)
+      WRITE(IW,6030)(I,XG(I),I,YG(I),I,ZG(I),I=1,MEK)
+C
+C
+   20 CONTINUE
+C
+C     CHECK IF THE ELEMENT IS DEGENERATED
+C
+      CALL CHQA30(XG,YG,ZG,IERR)
+      IF(IERR)190,25,25
+   25 CONTINUE
+C
+C     ISTABLISH THE ELASTICITY MATRIX
+C
+      D(1,1)=YOUNG/(1.-RNY*RNY)
+      D(2,2)=D(1,1)
+      D(1,2)=D(1,1)*RNY
+      D(2,1)=D(1,2)
+      D(3,3)=D(1,1)*(1.-RNY)*.5
+      D(4,4)=D(3,3)/1.2
+      D(5,5)=D(4,4)
+C
+C
+C     START STRESS MATRIX CALCULATION
+C
+C
+C     COMPUTE THE PARTIAL DERIVATIVES OF THE SHAPE FUNCTION
+C
+      CALL DNI830(DNXI,DNET,NXIET,XI,ET,XII,ETI)
+C
+C
+C     COMPUTE THE JACOBIAN MATRIX,ITS INVERSE AND ITS DETERMINANT
+C
+      CALL JACO30(JA,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZE,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)190,40,40
+C
+C     STRESSES NOT DEFINED
+C
+C
+   40 CONTINUE
+C
+C     ISTABLISH THE SURFACE NORMAL IN THE STRESS POINT
+C
+      LAMP(1,3)=JA(1,2)*JA(2,3)-JA(2,2)*JA(1,3)
+      LAMP(2,3)=JA(2,1)*JA(1,3)-JA(1,1)*JA(2,3)
+      LAMP(3,3)=JA(1,1)*JA(2,2)-JA(2,1)*JA(1,2)
+      RL=SQRT(LAMP(1,3)*LAMP(1,3)+LAMP(2,3)*LAMP(2,3)+LAMP(3,3)*LAMP(3,3
+     1))
+      LAMP(1,3)=LAMP(1,3)/RL
+      LAMP(2,3)=LAMP(2,3)/RL
+      LAMP(3,3)=LAMP(3,3)/RL
+      IF(ICODIR)50,50,45
+   45 CONTINUE
+      CALL LNCS30(LAMP,ICODIR,IW,IERR)
+      IF(IERR)190,65,65
+   50 CONTINUE
+C
+C     LOCAL X'-AXIS IS SET PARALEL TO XI-AXIS
+C
+      RL=JA(1,1)*JA(1,1)+JA(1,2)*JA(1,2)+JA(1,3)*JA(1,3)
+      RL=1.0D0/SQRT(RL)
+      DO 55 ITEL=1,3
+      LAMP(ITEL,1)=JA(1,ITEL)*RL
+   55 CONTINUE
+      LAMP(1,2)=LAMP(2,3)*JA(1,3)-JA(1,2)*LAMP(3,3)
+      LAMP(2,2)=JA(1,1)*LAMP(3,3)-LAMP(1,3)*JA(1,3)
+      LAMP(3,2)=LAMP(1,3)*JA(1,2)-JA(1,1)*LAMP(2,3)
+      RL=LAMP(1,2)*LAMP(1,2)+LAMP(2,2)*LAMP(2,2)+LAMP(3,2)*LAMP(3,2)
+      RL=1.0D0/SQRT(RL)
+      DO 60 ITEL=1,3
+      LAMP(ITEL,2)=LAMP(ITEL,2)*RL
+   60 CONTINUE
+   65 CONTINUE
+C
+C     START COMPUTATION OF INTERMIDIATE HELPING ARRAYS: A, B, C, A1, A2,
+C     A3, A4, A5, A6, AND A7
+C
+      A(1,1)=LAMP(1,1)*JI(1,1)+LAMP(2,1)*JI(2,1)+LAMP(3,1)*JI(3,1)
+      A(1,2)=LAMP(1,1)*JI(1,2)+LAMP(2,1)*JI(2,2)+LAMP(3,1)*JI(3,2)
+      A(2,1)=LAMP(1,2)*JI(1,1)+LAMP(2,2)*JI(2,1)+LAMP(3,2)*JI(3,1)
+      A(2,2)=LAMP(1,2)*JI(1,2)+LAMP(2,2)*JI(2,2)+LAMP(3,2)*JI(3,2)
+      A(3,1)=LAMP(1,3)*JI(1,1)+LAMP(2,3)*JI(2,1)+LAMP(3,3)*JI(3,1)
+      A(3,2)=LAMP(1,3)*JI(1,2)+LAMP(2,3)*JI(2,2)+LAMP(3,3)*JI(3,2)
+      A(3,3)=LAMP(1,3)*JI(1,3)+LAMP(2,3)*JI(2,3)+LAMP(3,3)*JI(3,3)
+C
+      DO 110 I=1,MEK
+      B(I,1)=A(1,1)*DNXI(I)+A(1,2)*DNET(I)
+      B(I,2)=A(2,1)*DNXI(I)+A(2,2)*DNET(I)
+      B(I,3)=A(3,1)*DNXI(I)+A(3,2)*DNET(I)
+      C(I)=A(3,3)*NXIET(I)
+C
+C     COMPUTE (A1)=(BI)*(LAMP)'
+C
+      A1(I,1,1)=LAMP(1,1)*B(I,1)
+      A1(I,2,1)=LAMP(1,2)*B(I,2)
+      A1(I,3,1)=LAMP(1,1)*B(I,2)+LAMP(1,2)*B(I,1)
+      A1(I,4,1)=LAMP(1,3)*B(I,1)+LAMP(1,1)*B(I,3)
+      A1(I,5,1)=LAMP(1,3)*B(I,2)+LAMP(1,2)*B(I,3)
+      A1(I,1,2)=LAMP(2,1)*B(I,1)
+      A1(I,2,2)=LAMP(2,2)*B(I,2)
+      A1(I,3,2)=LAMP(2,1)*B(I,2)+LAMP(2,2)*B(I,1)
+      A1(I,4,2)=LAMP(2,3)*B(I,1)+LAMP(2,1)*B(I,3)
+      A1(I,5,2)=LAMP(2,3)*B(I,2)+LAMP(2,2)*B(I,3)
+      A1(I,1,3)=LAMP(3,1)*B(I,1)
+      A1(I,2,3)=LAMP(3,2)*B(I,2)
+      A1(I,3,3)=LAMP(3,1)*B(I,2)+LAMP(3,2)*B(I,1)
+      A1(I,4,3)=LAMP(3,3)*B(I,1)+LAMP(3,1)*B(I,3)
+      A1(I,5,3)=LAMP(3,3)*B(I,2)+LAMP(3,2)*B(I,3)
+C
+C     COMPUTE(A2)=(A1)*(FI)
+C
+      DO 70 II=1,5
+      A2(I,II,2)=LAMBI(I,1,1)*A1(I,II,1)+LAMBI(I,1,2)*A1(I,II,2)+
+     FLAMBI(I,1,3)*A1(I,II,3)
+      A2(I,II,1)=-LAMBI(I,2,1)*A1(I,II,1)-LAMBI(I,2,2)*A1(I,II,2)-
+     FLAMBI(I,2,3)*A1(I,II,3)
+   70 CONTINUE
+C
+C     COMPUTE (A3)=(CI)*(LAMP)'
+C
+      A3(I,4,1)=LAMP(1,1)*C(I)
+      A3(I,5,1)=LAMP(1,2)*C(I)
+      A3(I,4,2)=LAMP(2,1)*C(I)
+      A3(I,5,2)=LAMP(2,2)*C(I)
+      A3(I,4,3)=LAMP(3,1)*C(I)
+      A3(I,5,3)=LAMP(3,2)*C(I)
+C
+C     COMPUTE (A4)=(A3)*(FI)
+C
+      DO 80 II=4,5
+      A4(I,II,2)=LAMBI(I,1,1)*A3(I,II,1)+LAMBI(I,1,2)*A3(I,II,2)+
+     FLAMBI(I,1,3)*A3(I,II,3)
+      A4(I,II,1)=-LAMBI(I,2,1)*A3(I,II,1)-LAMBI(I,2,2)*A3(I,II,2)-
+     FLAMBI(I,2,3)*A3(I,II,3)
+   80 CONTINUE
+C
+C     COMPUTE(A5)=(D)*(A1)
+C
+      DO 90 II=1,3
+      A5(I,1,II)=A1(I,1,II)*D(1,1)+A1(I,2,II)*D(2,1)
+      A5(I,2,II)=A1(I,1,II)*D(1,2)+A1(I,2,II)*D(2,2)
+      A5(I,3,II)=A1(I,3,II)*D(3,3)
+      A5(I,4,II)=A1(I,4,II)*D(4,4)
+      A5(I,5,II)=A1(I,5,II)*D(5,5)
+   90 CONTINUE
+C
+C     COMPUTE(A6)=(D)*(A4)
+C
+      A6(I,4,1)=A4(I,4,1)*D(4,4)
+      A6(I,5,1)=A4(I,5,1)*D(5,5)
+      A6(I,4,2)=A4(I,4,2)*D(4,4)
+      A6(I,5,2)=A4(I,5,2)*D(5,5)
+C
+C     COMPUTE (A7)=(D)*(A2)
+C
+      DO 100 II=1,2
+      A7(I,1,II)=A2(I,1,II)*D(1,1)+A2(I,2,II)*D(2,1)
+      A7(I,2,II)=A2(I,1,II)*D(1,2)+A2(I,2,II)*D(2,2)
+      A7(I,3,II)=A2(I,3,II)*D(3,3)
+      A7(I,4,II)=A2(I,4,II)*D(4,4)
+      A7(I,5,II)=A2(I,5,II)*D(5,5)
+  100 CONTINUE
+C
+  110 CONTINUE
+C
+C     COMPUTE THE STRESS MATRIX
+C
+      DO 150 I=1,MEK
+      THH=.5*TH(I)
+      NL=I*5-5
+      DO 140 I1=1,5
+      DO 120 I2=1,3
+      NLL=NL+I2
+      SIG(I1,NLL)=A5(I,I1,I2)
+  120 CONTINUE
+      DO 130 I3=1,2
+      NLL=NL+3+I3
+      SIG(I1,NLL)=THH*ZE*A7(I,I1,I3)
+      IF(I1-4)130,125,125
+  125 SIG(I1,NLL)=SIG(I1,NLL)+THH*A6(I,I1,I3)
+  130 CONTINUE
+  140 CONTINUE
+C
+  150 CONTINUE
+C
+C     PRINT ?
+C
+      IF(IPSW-2) 170,160,160
+  160 WRITE(IW,6080)XI,ET,ZE,IEL
+      CALL MPRT30(SIG,5,40,IW)
+      WRITE(IW,6081) ((LAMP(I1,I2),I2=1,3),I1=1,3)
+  170 CONTINUE
+      IF(IERR)190,200,200
+  190 WRITE(IW,6040)
+      WRITE(IW,6050)IERR
+      WRITE(IW,6060)IEL
+      WRITE(IW,6070)IEL
+  200 CONTINUE
+ 6000 FORMAT(///29H ENTERING SCQS32 FOR ELEMENT ,I7,2H :)
+ 6001 FORMAT(11H   ICODIR =,I2)
+ 6010 FORMAT(12H     E    = ,1PE12.5,12H     NY   = ,1PE12.5)
+ 6020 FORMAT(7H     TH,I1,4H  = ,1PE12.5)
+ 6030 FORMAT(7H     XG,I1,4H  = ,1PE12.5,
+     1       7H     YG,I1,4H  = ,1PE12.5,
+     2       7H     ZG,I1,4H  = ,1PE12.5)
+ 6040 FORMAT(///33H *** ERROR RETURN FROM SCQS32 *** )
+ 6050 FORMAT(/17H     ERROR FLAG =,I3)
+ 6060 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+ 6070 FORMAT(/28H LEAVING SCQS32 FOR ELEMENT ,I7)
+ 6080 FORMAT(/22H STRESS MATRIX AT  XI=,F8.5,5H  ET=,F8.5,5H  ZE=,
+     1       F8.5,14H  FOR ELEMENT ,I7,2H :)
+ 6081 FORMAT(/39H LOCAL-TO-GLOBAL TRANSFORMATION MATRIX:/(1P3E13.5))
+C
+      RETURN
+      END
+      SUBROUTINE SCQS33(F,P,IOP,IOP1,XG,YG,ZG,TH,LAMBI,INT1,INT2,
+     1                  NR,ICODIR,IEL,IPSW,IW,IERR)
+C
+C     ******************************************************************
+C        E L E M E N T  L I B R A R Y  SUBROUTINE SCQS33
+C
+C          SCQS33 CALCULATES THE KINEMATICALLY CONSISTENT NODAL FORCE
+C          VECTOR FOR A SUBPARAMETRIC 8-NODES CURVED SHELL ELEMENT
+C          DUE TO VOLUME,SURFACE OR LINE LOAD ACTING ON THE ELEMENT
+C
+C
+C          IOP(1,NRR)=1  PARABOLICALLY VARYING VOLUME LOAD
+C          IOP(2,NRR)=1  PRESSURE NORMAL TO XI-ETA SURFACE
+C                IOP1(1,NRR)=1 ON THE SURFACE ZETA=-1
+C                IOP1(2,NRR)=1 ON THE SURFACE ZETA=0
+C                IOP1(3,NRR)=1 ON THE SURFACE ZETA=1
+C          IOP(3,NRR)=1  SURFACE LOAD GIVEN IN COMPONENT FORM
+C                IOP1(1,NRR)=1 ON THE SURFACE ZETA=-1
+C                IOP1(2,NRR)=1 ON THE SURFACE ZETA=0
+C                IOP1(3,NRR)=1 ON THE SURFACE ZETA=1
+C          IOP(4,NRR)=1  LINE LOAD
+C                IOP1(1,NRR)=1 ALONG THE LINE XI=1 ZETA=0
+C                IOP1(2,NRR)=1 ALONG THE LINE XI=0 ZETA=0
+C                IOP1(3,NRR)=1 ALONG THE LINE XI=-1ZETA=0
+C                IOP1(4,NRR)=1 ALONG THE LINE ETA=1  ZETA=0
+C                IOP1(5,NRR)=1 ALONG THE LINE ETA=0  ZETA=0
+C                IOP1(6,NRR)=1 ALONG THE LINE ETA=-1 ZETA=0
+C
+C          NRR INDICATES THE LOADCASE NUMBER REGARDED
+C
+C        PROGRAMMED BY : J.H.WERGELAND  A/S COMPUTAS
+C        DATE/VERSION : 15.04.75/01
+C
+C     ******************************************************************
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     F(40,NR),      P(1),          XG(8),
+     1              YG(8),         ZG(8),         TH(8),
+     1              LAMBI(8,3,3),  PRV(8,8),      PRVM(16,24),
+     3              PRN(24,8,3),   PRC(8,8,3),    PRCM(16,24,3),
+     4              PRL(8,3),      XII(8),        ETI(8),
+     6              IOP1(6,NR),    IOP(4,NR),     ISN(3),
+     7              ISC(3),        ISL(6),        NO(3)
+C
+      DOUBLE PRECISION LAMBI
+C
+      PARAMETER ( MEK=8, NEK=MEK*5, MEK3=MEK*3 )
+C
+      IERR=0
+C
+      DO 20 I=1,NR
+      DO 10 J=1,NEK
+      F(J,I)=0.
+   10 CONTINUE
+   20 CONTINUE
+C
+C     PRINT ?
+C
+      IF(IPSW-2)45,30,30
+   30 WRITE(IW,6000)IEL
+C      WRITE(IW,6010)(I,TH(I),I=1,MEK)
+C      WRITE(IW,6020)((I,XG(I)),(I,YG(I)),(I,ZG(I)),I=1,MEK)
+      WRITE(IW,6030)
+      DO 35 NRR=1,NR
+      WRITE(IW,6035)NRR,(IOP(I,NRR),I=1,4)
+   35 CONTINUE
+C      WRITE(IW,6040)
+C      DO 40 NRR=1,NR
+C      WRITE(IW,6045)NRR,(IOP1(I,NRR),I=1,6)
+C   40 CONTINUE
+C
+   45 CONTINUE
+C
+C     CHECK IF ELEMENT IS DEGENERATED
+C
+      CALL CHQA30(XG,YG,ZG,IERR)
+      IF(IERR)1010,50,50
+   50 CONTINUE
+C
+C     ISTABLISH THE ARRAYS XII ETI CONTAINING NODAL VALUES OF
+C     THE CURVILINEAR COORDINATES
+C
+      XII(1)=-1.
+      XII(2)=0.
+      XII(3)=1.
+      XII(4)=1.
+      XII(5)=1.
+      XII(6)=0.
+      XII(7)=-1.
+      XII(8)=-1.
+      ETI(1)=-1.
+      ETI(2)=-1.
+      ETI(3)=-1.
+      ETI(4)=0.
+      ETI(5)=1.
+      ETI(6)=1.
+      ETI(7)=1.
+      ETI(8)=0.
+C
+C
+C     CALCULATE THE DIRECTION COSINES FOR THE LOCAL COORDINATE SYSTEM
+C     IF NEEDED :ONLY IF VOLUME FORCES OR AREA FORCES FORCES NOT
+C     ACTING IN MIDDLE SURFACE OF THE SHELL
+C
+      DO 85 NRR=1,NR
+      IF(IOP(1,NRR)-1)55,90,55
+   55 IF(IOP(2,NRR)-1)85,70,60
+   60 IF(IOP(3,NRR)-1)85,70,85
+   70 IF(IOP1(1,NRR)-1)80,90,80
+   80 IF(IOP1(3,NRR)-1)85,90,85
+   85 CONTINUE
+      GO TO 100
+   90 CONTINUE
+      CALL SCQS30(XG,YG,ZG,IEL,ICODIR,XII,ETI,LAMBI,IPSW,IW,IERR)
+      IF(IERR)1010,100,100
+  100 CONTINUE
+C
+C     NULLIFY SOME STATUS AND COUNTING VARIABLES
+C
+      IV=0
+      ISN(1)=0
+      ISN(2)=0
+      ISN(3)=0
+      ISC(1)=0
+      ISC(2)=0
+      ISC(3)=0
+      ISL(1)=0
+      ISL(2)=0
+      ISL(3)=0
+      ISL(4)=0
+      ISL(5)=0
+      ISL(6)=0
+      IP=0
+C
+C     ********************
+CC    ********************
+C     START LOADCASE LOOP
+CC    ********************
+C     ********************
+C
+      DO 990 NRR=1,NR
+C
+C     ************************************************
+C     CALCULATION OF NODAL FORCES FROM GIVEN VOLUME LOADS
+C     ************************************************
+C
+C     PRINT
+C
+      IF(IPSW-2)140,130,130
+  130 WRITE(IW,6050)NRR
+  140 CONTINUE
+C
+      IF(IOP(1,NRR)-1)320,150,320
+  150 CONTINUE
+      IF(IV)170,160,170
+  160 CONTINUE
+      CALL PRV830(PRV,PRVM,XG,YG,ZG,TH,XII,ETI,LAMBI,INT1,INT2,
+     1            INT3,IEL,IW,IERR)
+      IF(IERR)1010,170,170
+  170 CONTINUE
+      IV=1
+      IF(IPSW-2)200,180,180
+  180 WRITE(IW,6060)(P(IP+I),I=1,24)
+  200 CONTINUE
+C
+C     CALCULATION OF FORCE COMPONENTS
+C
+      DO 230 I=1,MEK
+      II=(I-1)*5
+      DO 220 J=1,MEK
+      JJ=(J-1)*3
+      DO 210 I2=1,3
+      F(II+I2,NRR) = F(II+I2,NRR) + PRV(I,J)*P(IP+JJ+I2)
+  210 CONTINUE
+  220 CONTINUE
+  230 CONTINUE
+C
+C     IF NUMERICAL INTEGRATION IN ZETA DIRECTION IS PERFORMED IN PRV830
+C     CALCULATE CONTRIBUTION TO NODAL MOMENT COMPONENTS
+C
+      IF(INT3-1)310,310,240
+  240 CONTINUE
+      DO 300 I2=1,2
+      DO 290 II=0,NEK-5,5
+      DO 280 JJ=0,MEK3-3,3
+      F(II+3+I2,NRR) = F(II+3+I2,NRR)
+     1               + PRVM(II+I2,JJ+1)*P(IP+JJ+1)
+     2               + PRVM(II+I2,JJ+2)*P(IP+JJ+2)
+     3               + PRVM(II+I2,JJ+3)*P(IP+JJ+3)
+  280 CONTINUE
+  290 CONTINUE
+  300 CONTINUE
+  310 CONTINUE
+      IP=IP+MEK3
+  320 CONTINUE
+C
+C     ******************************************************
+C     CALCULATION OF NODAL FORCES FROM GIVEN NORMAL PRESSURE
+C     ******************************************************
+C
+C
+      IF(IOP(2,NRR)-1)510,330,510
+  330 CONTINUE
+C
+C     ***
+C     START SURFACE LOOP
+C     ***
+C
+      DO 500 IS=1,3
+      IF(IOP1(IS,NRR)-1)500,340,500
+  340 IF(ISN(IS)-1)350,360,350
+  350 CONTINUE
+      ZE=IS-2
+      CALL PRN830(PRN,XG,YG,ZG,TH,XII,ETI,LAMBI,INT1,INT2,ZE,IEL,
+     1            IW,IERR)
+      IF(IERR)1010,360,360
+  360 CONTINUE
+C
+C     PRINT
+C
+      IF(IPSW-2)370,365,365
+  365 WRITE(IW,6070)ZE,(P(J+IP),J=1,8)
+  370 CONTINUE
+      ISN(IS)=1
+      DO 400 I=1,MEK
+      II=(I-1)*5
+      I2=(I-1)*3
+      DO 390 I1=1,3
+      DO 380 J=1,MEK
+      F(II+I1,NRR) = F(II+I1,NRR) + PRN(I2+I1,J,IS)*P(IP+J)
+  380 CONTINUE
+  390 CONTINUE
+  400 CONTINUE
+      IP=IP+MEK
+  500 CONTINUE
+  510 CONTINUE
+C
+C     ******************************************************
+C     CALCULATION OF NODAL FORCES FROM GIVEN AREA-LOADS IN
+C     COMPONENT FORM
+C     ******************************************************
+C
+      IF(IOP(3,NRR)-1)690,515,690
+  515 CONTINUE
+C
+C     **
+C     START SURFACE LOOP
+C     **
+C
+      DO 680 IS=1,3
+      IF(IOP1(IS,NRR)-1)680,520,680
+  520 IF(ISC(IS)-1)530,550,530
+  530 CONTINUE
+      ZE=IS-2
+      CALL PRC830(PRC,PRCM,XG,YG,ZG,TH,XII,ETI,LAMBI,INT1,INT2,ZE,
+     1            IEL,IW,IERR)
+      IF(IERR)1010,540,540
+  540 CONTINUE
+      ISC(IS)=1
+  550 CONTINUE
+C
+C     PRINT
+C
+      IF(IPSW-2)570,560,560
+  560 WRITE(IW,6080)ZE,(P(I+IP),I=1,24)
+  570 CONTINUE
+C
+C     CALCULATION OF FORCE COMPONENTS
+C
+      DO 600 I=1,MEK
+      II=(I-1)*5
+      DO 590 J=1,MEK
+      JJ=(J-1)*3
+      DO 580 I2=1,3
+      F(II+I2,NRR) = F(II+I2,NRR) + PRC(I,J,IS)*P(IP+JJ+I2)
+  580 CONTINUE
+  590 CONTINUE
+  600 CONTINUE
+C
+C     CALCULATE NODAL MOMENTS IF SURFACE NOT MIDDLE SURFACE
+C
+      IF(IS-2)610,670,610
+  610 CONTINUE
+      DO 660 I=1,MEK
+      II=(I-1)*5
+      I1=(I-1)*2
+      DO 650 I2=1,2
+      DO 640 JJ=0,MEK3-3,3
+      F(II+3+I2,NRR) = F(II+3+I2,NRR)
+     1               + PRCM(I1+I2,JJ+1,IS)*P(IP+JJ+1)
+     2               + PRCM(I1+I2,JJ+2,IS)*P(IP+JJ+2)
+     3               + PRCM(I1+I2,JJ+3,IS)*P(IP+JJ+3)
+  640 CONTINUE
+  650 CONTINUE
+  660 CONTINUE
+  670 CONTINUE
+      IP=IP+MEK3
+  680 CONTINUE
+  690 CONTINUE
+C
+C
+C     ************************************************
+C     CALCULATION OF NODAL FORCES DUE TO GIVEN LINE LOAD
+C     ************************************************
+C
+      IF(IOP(4,NRR)-1)990,700,990
+  700 CONTINUE
+C
+C     **
+C     START LINE LOOP
+C     **
+C
+      DO 960 IL=1,6
+      IF(IOP1(IL,NRR)-1)960,740,960
+  740 CONTINUE
+      GO TO (750,760,770,780,790,800),IL
+  750 NO(1)=3
+      NO(2)=4
+      NO(3)=5
+      NUM=-3
+      GO TO 810
+  760 NO(1)=2
+      NO(2)=6
+      NUM=-2
+      GO TO 810
+  770 NO(1)=1
+      NO(2)=8
+      NO(3)=7
+      NUM=-3
+      GO TO 810
+  780 NO(1)=7
+      NO(2)=6
+      NO(3)=5
+      NUM=3
+      GO TO 810
+  790 NO(1)=8
+      NO(2)=4
+      NUM=2
+      GO TO 810
+  800 NO(1)=1
+      NO(2)=2
+      NO(3)=3
+      NUM=3
+C
+  810 CONTINUE
+      IF(ISL(IL)-1)820,830,820
+  820 CALL PRL830(PRL,XG,YG,ZG,XII,ETI,NO,NUM,IL,INT1,INT2)
+      IF(IERR)1010,830,830
+  830 CONTINUE
+      ISL(IL)=1
+C
+C     PRINT
+C
+      NUM=IABS(NUM)
+      IF(IPSW-2)850,840,840
+  840 CONTINUE
+      WRITE(IW,6090)(NO(I),I=1,NUM),(P(IP+I),I=1,3*NUM)
+  850 CONTINUE
+      IF(NUM-2)910,860,910
+  860 CONTINUE
+      DO 900 I=1,MEK
+      II=(I-1)*5
+      DO 890 I2=1,3
+      F(II+I2,NRR) = F(II+I2,NRR)
+     1             + PRL(I,1)*P(IP+I2)
+     2             + PRL(I,2)*P(IP+I2+3)
+  890 CONTINUE
+  900 CONTINUE
+      GO TO 960
+  910 CONTINUE
+      DO 950 I=1,3
+      II=(NO(I)-1)*5
+      DO 940 I1=1,3
+      F(II+I1,NRR) = F(II+I1,NRR)
+     1             + PRL(I,1)*P(IP+I1)
+     2             + PRL(I,2)*P(IP+I1+3)
+     3             + PRL(I,3)*P(IP+I1+6)
+  940 CONTINUE
+  950 CONTINUE
+      IP=IP+3*NUM
+  960 CONTINUE
+  990 CONTINUE
+C
+C     PRINT
+C
+      IF(IPSW-2)1005,1000,1000
+ 1000 WRITE(IW,6100)
+      DO 1004 NRR=1,NR
+      WRITE(IW,6110)NRR,(F(I,NRR),I=1,NEK)
+ 1004 CONTINUE
+      WRITE(IW,6120)IEL
+ 1005 CONTINUE
+C
+C
+C     ERROR OR WARNING DETECTED  ERROR RETURN
+C
+      IF(IERR)1010,1020,1020
+ 1010 WRITE(IW,6130)
+      WRITE(IW,6140)IERR
+      WRITE(IW,6150)IEL
+ 1020 CONTINUE
+C
+ 6000 FORMAT(///29H ENTERING SCQS33 FOR ELEMENT ,I7,2H :)
+C 6010 FORMAT(8(/7H     TH,I1,4H  = ,1PE12.5) )
+C 6020 FORMAT(  8(/7H     XG,I1,4H  = ,1PE12.5,/7H     YG,I1,4H  = ,1PE12
+C     1.5,/7H     ZG,I1,4H  = ,1PE12.5))
+ 6030 FORMAT(/22X,20H TYPES OF LOAD GIVEN,/,66H LOADCASE  VOL.LOAD   NOR
+     1MAL PRESS.   AREA LOAD COMP.    LINE LOAD//)
+ 6035 FORMAT(/4X,I2,7X,I2,12X,I2,14X,I2,13X,I2)
+C 6040 FORMAT(/22X,'SURFACE OR LINE SPECIFIED',/,'LOADCASE   SURF1   ',
+C     1'SURF2   SURF3',/,12X,'LINE1   LINE2   LINE3   LINE4   LINE5  ',
+C     1'LINE6',//)
+C 6045 FORMAT(/4X,I2,7X,I2,6X,I2,6X,I2,6X,I2,6X,I2,6X,I2)
+ 6050 FORMAT(//26H GIVEN LOADS FOR LOADCASE:,I3,/,15(2H *))
+ 6060 FORMAT(//5X,20H GIVEN VOLUME LOADS:,8(/,25X,3E12.5))
+ 6070 FORMAT(//5X,37H GIVEN NORMAL PRESSURE IN SURFACE ZE=,F5.1,/,
+     18(/,47X,E12.5))
+ 6080 FORMAT(//5X,32H GIVEN AREA LOAD IN SURFACE  ZE=,F5.1,/,
+     18(/,41X,3E12.5))
+ 6090 FORMAT(//5X,31H GIVEN LINE LOAD BETWEEN NODES:,3I3,/,
+     13(/,45X,3E12.5))
+ 6100 FORMAT(//24H CALCULATED NODAL FORCES,2(12(2H *)))
+ 6110 FORMAT(/11H LOADCASE: ,I3,8(/,20X,5E12.5))
+ 6120 FORMAT(/28H LEAVING SCQS33 FOR ELEMENT ,I7)
+ 6130 FORMAT(///33H *** ERROR RETURN FROM SCQS33 *** )
+ 6140 FORMAT(/17H     ERROR FLAG =,I3)
+ 6150 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+      RETURN
+      END
+      SUBROUTINE SCQS34(R,XG,YG,ZG,TH,IEL,YOUNG,RNY,ICODIR,EPS,DEPS,ICN,
+     1                  LAMBI,INT1,INT2,IPSW,IW,IERR)
+C
+C     ******************************************************************
+C
+C         E L E M E N T  L I B R A R Y  SUBROUTINE SCQS34
+C
+C           SCQS34 CALCULATES THE CONSISTENT NODAL FORCES DUE TO
+C           INITIAL STRAIN WITHIN A SUBPARAMETRIC CURVED QUADRILATERAL
+C           8-NODES SHELL ELEMENT
+C
+C           FORCE COMPONENTS ARE REFERRED TO GLOBAL CARTESIAN COORDINATE
+C           SYSTEM AND MOMENT COMPONENTS TO LOCAL NODAL COORDINATE
+C           SYSTEMS
+C
+C           PROGRAMMED BY :J.H.WERGELAND   DNV
+C
+C           DATE/VERSION :15.10.74/01
+C
+C     ******************************************************************
+C
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     R(40)         ,XG(8)         ,YG(8)         ,
+     1              ZG(8)         ,EPS(8,5)      ,DEPS(8,5)     ,
+     2              DNXI(8)       ,DNET(8)       ,NXIET(8)      ,
+     3              LAMBI(8,3,3)  ,JA(3,3)       ,JI(3,3)       ,
+     4              TH(8)         ,XII(8)        ,ETI(8)        ,
+     5              TET(3,3)      ,A(3,3)        ,
+     8              A1(8,3,5)     ,A2(8,2,5)     ,A3(8,3,5)     ,
+     9              A4(8,2,5)     ,A5(8,3,5)     ,A6(8,3,5)     ,
+     1              A7(8,2,5)     ,B(8,3)        ,C(8)          ,
+     2              D(5,5)        ,XV(3,3)       ,WT(3,3)       ,
+     3              EPSI(5)       ,DEPSI(5)
+C
+      DOUBLE PRECISION      NXIET    ,LAMBI    ,JA       ,JI
+C
+      PARAMETER ( MEK=8, NEK=5*MEK )
+C
+      IERR=0
+C
+      DO 10 I=1,NEK
+      R(I)=0.
+   10 CONTINUE
+C
+C     PRINT ?
+C
+      IF(IPSW-2)30,20,20
+   20 WRITE(IW,6000)IEL
+      WRITE(IW,6010)YOUNG,RNY,ICN
+C      WRITE(IW,6020)((I,TH(I)),I=1,MEK)
+C      WRITE(IW,6030)((I,XG(I)),(I,YG(I)),(I,ZG(I)),I=1,MEK)
+C      WRITE(IW,6040)((I,EPS(I,1),I,EPS(I,2),I,EPS(I,3),I,EPS(I,4),
+C     1               I,EPS(I,5)),I=1,MEK)
+C      WRITE(IW,6050)((I,DEPS(I,1),I,DEPS(I,2),I,DEPS(I,3),I,DEPS(I,4),
+C     1               I,DEPS(I,5)),I=1,MEK)
+   30 CONTINUE
+C
+C     CHECK IF THE ELEMENT IS DEGENERATED
+C
+      CALL CHQA30(XG,YG,ZG,IERR)
+      IF(IERR)850,35,35
+   35 CONTINUE
+C
+C     SET CONSTANTS USED IN THE SUBROUTINE
+C
+C
+C     THE ELACTICITY MATRIX D
+C
+      D(1,1)=YOUNG/(1.-RNY*RNY)
+      D(2,2)=D(1,1)
+      D(1,2)=D(1,1)*RNY
+      D(2,1)=D(1,2)
+      D(3,3)=D(1,1)*(1.-RNY)*.5
+      D(4,4)=D(1,1)*(1.-RNY)/2.4
+      D(5,5)=D(4,4)
+C
+C     ABCISSA IN GAUSSIAN QUADRATURE INTEGRATION
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350269
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(2,3)=0.
+      XV(3,3)=-XV(1,3)
+C
+C     WEIGHT COEFFICIENTS OF THE GAUSSIAN QUADRATURE FORMULA
+C
+      WT(1,1)=2.
+      WT(1,2)=1.
+      WT(2,2)=1.
+      WT(1,3)=.555555556
+      WT(2,3)=.888888889
+      WT(3,3)=WT(1,3)
+C
+C     CALCULATE DIRECTION COSINE MATRICES
+C     FOR THE LOCAL NODE COORDINATE SYSTEMS
+C
+      CALL SCQS30(XG,YG,ZG,IEL,ICODIR,XII,ETI,LAMBI,IPSW,IW,IERR)
+      IF(IERR)850,40,40
+   40 CONTINUE
+C
+C     TEST IF NUMERICAL INTEGRATION IN ZE-DIRECTION IS NECESSARLY
+C
+C     TEST IF THE ELEMENT IS CURVED
+C
+      INT3=1
+      RDTH=0.
+      SUM=0.
+      DO 45 I=2,MEK
+      SUM=SUM+(LAMBI(1,3,1)*LAMBI(I,3,1)+LAMBI(1,3,2)*LAMBI(I,3,2)+
+     1         LAMBI(1,3,3)*LAMBI(I,3,3))
+   45 CONTINUE
+      IF(SUM-6.95)50,50,55
+   50 CONTINUE
+      INT3=2
+      GO TO 75
+   55 CONTINUE
+C
+C     TEST IF CONSIDERABLE THICKNESS VARIATION
+C
+      THMID=0.
+      DO 60 I=1,MEK
+   60 THMID=THMID+TH(I)
+      THMID=THMID/MEK
+      THMIDI=1/THMID
+      DO 70 I=1,MEK
+      DELTH=ABS(TH(I)-THMID)*THMIDI
+      IF(DELTH-RDTH)70,70,65
+   65 RDTH=DELTH
+   70 CONTINUE
+      IF(RDTH-.05)75,75,50
+   75 CONTINUE
+C
+C
+C     START THE GAUSSIAN INTEGRATION LOOP
+C
+      DO 820 L=1,INT1
+      DO 810 M=1,INT2
+C
+C
+C     COMPUTE THE SHAPE FUNCTION AND THE PARTIAL DERIVATIVES OF THE
+C     SHAPE FUNCTION
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+C
+C     START INTEGRATION IN ZE
+C
+      DO 800 N=1,INT3
+      ZETA=XV(N,INT3)
+C
+C     COMPUTE THE JACOBIAN MATRIX,ITS INVERSE AND ITS DETERMINANT
+C
+      CALL JACO30(JA,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZETA,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)850,150,150
+C
+C     COMPUTE DIRECTION COSINE MATRIX TET FOR THE LOCAL X',Y'AND Z'-AXIS
+C     IN THE INTEGRATION POINT
+C
+  150 CONTINUE
+C
+      IF(ICODIR)170,170,160
+  160 CONTINUE
+      TET(1,3)=JA(1,2)*JA(2,3)-JA(2,2)*JA(1,3)
+      TET(2,3)=JA(2,1)*JA(1,3)-JA(1,1)*JA(2,3)
+      TET(3,3)=JA(1,1)*JA(2,2)-JA(2,1)*JA(1,2)
+      RL=SQRT(TET(1,3)*TET(1,3)+TET(2,3)*TET(2,3)+TET(3,3)*TET(3,3))
+      TET(1,3)=TET(1,3)/RL
+      TET(2,3)=TET(2,3)/RL
+      TET(3,3)=TET(3,3)/RL
+      CALL LNCS30(TET,ICODIR,IW,IERR)
+      IF(IERR)850,190,190
+  170 CONTINUE
+      TET(1,1)=JA(1,1)
+      TET(2,1)=JA(1,2)
+      TET(3,1)=JA(1,3)
+C
+      TET(1,3)=JA(1,2)*JA(2,3)-JA(2,2)*JA(1,3)
+      TET(2,3)=JA(2,1)*JA(1,3)-JA(1,1)*JA(2,3)
+      TET(3,3)=JA(1,1)*JA(2,2)-JA(2,1)*JA(1,2)
+C
+      TET(1,2)=TET(2,3)*TET(3,1)-TET(2,1)*TET(3,3)
+      TET(2,2)=TET(1,1)*TET(3,3)-TET(1,3)*TET(3,1)
+      TET(3,2)=TET(1,3)*TET(2,1)-TET(1,1)*TET(2,3)
+C
+C     NORMELIZE TET
+C
+      RR1=SQRT(TET(1,1)*TET(1,1)+TET(2,1)*TET(2,1)+TET(3,1)*TET(3,1))
+      RR2=SQRT(TET(1,2)*TET(1,2)+TET(2,2)*TET(2,2)+TET(3,2)*TET(3,2))
+      RR3=SQRT(TET(1,3)*TET(1,3)+TET(2,3)*TET(2,3)+TET(3,3)*TET(3,3))
+      RR1=1./RR1
+      RR2=1./RR2
+      RR3=1./RR3
+      DO 180 I=1,3
+      TET(I,1)=TET(I,1)*RR1
+      TET(I,2)=TET(I,2)*RR2
+      TET(I,3)=TET(I,3)*RR3
+  180 CONTINUE
+  190 CONTINUE
+C
+C     CALCULATE A=(TET)'*JI
+C
+      A(1,1)=TET(1,1)*JI(1,1)+TET(2,1)*JI(2,1)+TET(3,1)*JI(3,1)
+      A(1,2)=TET(1,1)*JI(1,2)+TET(2,1)*JI(2,2)+TET(3,1)*JI(3,2)
+      A(2,1)=TET(1,2)*JI(1,1)+TET(2,2)*JI(2,1)+TET(3,2)*JI(3,1)
+      A(2,2)=TET(1,2)*JI(1,2)+TET(2,2)*JI(2,2)+TET(3,2)*JI(3,2)
+      A(3,1)=0.
+      A(3,2)=0.
+      A(3,3)=TET(1,3)*JI(1,3)+TET(2,3)*JI(2,3)+TET(3,3)*JI(3,3)
+      IF(RDTH-.05)196,196,195
+C
+C     ADDITION TO A IF THICKNESS VARIATION
+C
+  195 CONTINUE
+      A(3,1)=TET(1,3)*JI(1,1)+TET(2,3)*JI(2,1)+TET(3,3)*JI(3,1)
+      A(3,2)=TET(1,3)*JI(1,2)+TET(2,3)*JI(2,2)+TET(3,3)*JI(3,2)
+  196 CONTINUE
+C
+C     CALCULATE THE ARRAYS A1,A2,A3,A4,A5,A6,AND A7
+C
+      DO 280 I=1,MEK
+      B(I,1)=A(1,1)*DNXI(I)+A(1,2)*DNET(I)
+      B(I,2)=A(2,1)*DNXI(I)+A(2,2)*DNET(I)
+C
+C     COMPUTE  NORMAL STRAIN PART OF A1=TET*BI'
+C
+      A1(I,1,1)=TET(1,1)*B(I,1)
+      A1(I,1,2)=TET(1,2)*B(I,2)
+      A1(I,2,1)=TET(2,1)*B(I,1)
+      A1(I,2,2)=TET(2,2)*B(I,2)
+      A1(I,3,1)=TET(3,1)*B(I,1)
+      A1(I,3,2)=TET(3,2)*B(I,2)
+C
+C     COMPUTE NORMAL STRAIN PART OF A2=FI'*A1
+C
+      DO 200 J=1,2
+      A2(I,2,J)=LAMBI(I,1,1)*A1(I,1,J)+LAMBI(I,1,2)*A1(I,2,J)+LAMBI(I,1,
+     13)*A1(I,3,J)
+      A2(I,1,J)=-LAMBI(I,2,1)*A1(I,1,J)-LAMBI(I,2,2)*A1(I,2,J)-LAMBI(I,2
+     1,3)*A1(I,3,J)
+  200 CONTINUE
+C
+C     COMPUTE NORMAL STRAIN PART OF A5=A1*D
+C
+      DO 210 J=1,3
+      A5(I,J,1)=A1(I,J,1)*D(1,1)+A1(I,J,2)*D(2,1)
+      A5(I,J,2)=A1(I,J,1)*D(2,1)+A1(I,J,2)*D(2,2)
+  210 CONTINUE
+C
+C     COMPUTE NORMAL STRAIN PART OF A7=A2*D
+C
+      DO 220 J=1,2
+      A7(I,J,1)=A2(I,J,1)*D(1,1)+A2(I,J,2)*D(2,1)
+      A7(I,J,2)=A2(I,J,1)*D(1,2)+A2(I,J,2)*D(2,2)
+  220 CONTINUE
+      IF(ICN)280,230,230
+  230 CONTINUE
+C
+C     INITIAL SHEAR STRAIN IS GIVEN
+C
+C     COMPUTE THE SHEAR STRAIN PART OF A1
+C
+      A1(I,1,3)=TET(1,1)*B(I,2)+TET(1,2)*B(I,1)
+      A1(I,1,4)=TET(1,3)*B(I,1)
+      A1(I,1,5)=TET(1,3)*B(I,2)
+      A1(I,2,3)=TET(2,1)*B(I,2)+TET(2,2)*B(I,1)
+      A1(I,2,4)=TET(2,3)*B(I,1)
+      A1(I,2,5)=TET(2,3)*B(I,2)
+      A1(I,3,3)=TET(3,1)*B(I,2)+TET(3,2)*B(I,1)
+      A1(I,3,4)=TET(3,3)*B(I,1)
+      A1(I,3,5)=TET(3,3)*B(I,2)
+      IF(RDTH-.05)236,236,235
+  235 CONTINUE
+C
+C     ADDITION TO A1 IF THICKNESS VARIATION
+C
+      B(I,3)=A(3,1)*DNXI(I)+A(3,2)*DNET(I)
+      A1(I,1,4)=A1(I,1,4)+TET(1,1)*B(I,3)
+      A1(I,1,5)=A1(I,1,5)+TET(1,2)*B(I,3)
+      A1(I,2,4)=A1(I,2,4)+TET(2,1)*B(I,3)
+      A1(I,2,5)=A1(I,2,5)+TET(2,2)*B(I,3)
+      A1(I,3,4)=A1(I,3,4)+TET(3,1)*B(I,3)
+      A1(I,3,5)=A1(I,3,5)+TET(3,2)*B(I,3)
+  236 CONTINUE
+C
+C     COMPUTE THE SHEAR STRAIN PART OF A2=FI'*A1
+C
+      DO 240 J=3,5
+      A2(I,2,J)=LAMBI(I,1,1)*A1(I,1,J)+LAMBI(I,1,2)*A1(I,2,J)+LAMBI(I,1,
+     13)*A1(I,3,J)
+      A2(I,1,J)=-LAMBI(I,2,1)*A1(I,1,J)-LAMBI(I,2,2)*A1(I,2,J)-LAMBI(I,2
+     1,3)*A1(I,3,J)
+  240 CONTINUE
+C
+      C(I)=A(3,3)*NXIET(I)
+C
+C     COMPUTE A3=TET*CI'
+C
+      A3(I,1,4)=TET(1,1)*C(I)
+      A3(I,1,5)=TET(1,2)*C(I)
+      A3(I,2,4)=TET(2,1)*C(I)
+      A3(I,2,5)=TET(2,2)*C(I)
+      A3(I,3,4)=TET(3,1)*C(I)
+      A3(I,3,5)=TET(3,2)*C(I)
+C
+C     COMPUTE A4=FI'*A3
+C
+      DO 250 J=4,5
+      A4(I,2,J)=LAMBI(I,1,1)*A3(I,1,J)+LAMBI(I,1,2)*A3(I,2,J)+LAMBI(I,1,
+     13)*A3(I,3,J)
+      A4(I,1,J)=-LAMBI(I,2,1)*A3(I,1,J)-LAMBI(I,2,2)*A3(I,2,J)-LAMBI(I,2
+     1,3)*A3(I,3,J)
+  250 CONTINUE
+C
+C     COMPUTE THE SHEAR STRAIN PART OF A5=A1*D
+C
+      DO 260 J=1,3
+      A5(I,J,3)=A1(I,J,3)*D(3,3)
+      A5(I,J,4)=A1(I,J,4)*D(4,4)
+      A5(I,J,5)=A1(I,J,5)*D(5,5)
+  260 CONTINUE
+C
+C     COMPUTE A6=A4*D
+C
+      A6(I,1,4)=A4(I,1,4)*D(4,4)
+      A6(I,1,5)=A4(I,1,5)*D(5,5)
+      A6(I,2,4)=A4(I,2,4)*D(4,4)
+      A6(I,2,5)=A4(I,2,5)*D(5,5)
+C
+C     COMPUTE SHEAR STRAIN PART OF A7.A2*D
+C
+      DO 270 J=1,2
+      A7(I,J,3)=A2(I,J,3)*D(3,3)
+      A7(I,J,4)=A2(I,J,4)*D(4,4)
+      A7(I,J,5)=A2(I,J,5)*D(5,5)
+  270 CONTINUE
+C
+  280 CONTINUE
+      IF(ICN)290,500,500
+  290 CONTINUE
+      IF(INT3-1)300,300,400
+  300 CONTINUE
+C
+C     ******************************************************************
+C
+C     ANALYTICALLY INTEGRATION IN ZE-DIR ONLY NORMAL INITIAL STRAIN
+C
+C     ******************************************************************
+C
+C     CALCULATE THE GIVEN INITIAL STAIN IN THE INT.POINT
+C
+      EPSI(1)=0
+      DEPSI(1)=0
+      IF(ICN+1)330,310,310
+  310 CONTINUE
+C
+C     CONSTANT STRAIN THROUGH THICKNESS
+C
+      DO 320 I=1,MEK
+      EPSI(1)=EPSI(1)+NXIET(I)*EPS(I,1)
+  320 CONTINUE
+      GO TO 340
+  330 CONTINUE
+C
+C     VARIABLE STRAIN THROUGH THICKNESS GIVEN
+C
+      DO 325 I=1,MEK
+      EPSI(1)=EPSI(1)+NXIET(I)*EPS(I,1)
+      DEPSI(1)=DEPSI(1)+NXIET(I)*DEPS(I,1)
+  325 CONTINUE
+  340 CONTINUE
+      COF=WT(L,INT1)*WT(M,INT2)*DETJ
+      DO 395 I=1,MEK
+      I1=(I-1)*5
+      DO 350 II=1,3
+      II1=I1+II
+      COF1=2*COF*EPSI(1)
+      R(II1)=R(II1)+COF1*(A5(I,II,1)+A5(I,II,2))
+  350 CONTINUE
+      IF(ICN+1)380,395,380
+  380 CONTINUE
+      COF3=COF*TH(I)*DEPSI(1)*.333333333
+      DO 390 II=1,2
+      II1=I1+II+3
+      R(II1)=R(II1)+COF3*(A7(I,II,1)+A7(I,II,2))
+  390 CONTINUE
+  395 CONTINUE
+      GO TO 800
+  400 CONTINUE
+C
+C     ******************************************************************
+C
+C     NUMERICALLY INTEGRATION IN ZE .ONLY NORMAL INITIAL STRAIN
+C
+C     ******************************************************************
+C
+C     CALCULATE THE GIVEN INITIAL STRAIN IN THE INT.POINT
+C
+      IF(ICN+1)430,410,410
+  410 CONTINUE
+C
+C     CONSTANT STRAIN THROUGH THICKNESS
+C
+      EPSI(1)=0
+      DO 420 I=1,MEK
+      EPSI(1)=EPSI(1)+NXIET(I)*EPS(I,1)
+  420 CONTINUE
+      GO TO 450
+  430 CONTINUE
+C
+C     VARIABLE STRAIN THROUGH THICKNESS
+C
+      EPSI(1)=0.
+      DO 440 I=1,MEK
+      EPSI(1)=EPSI(1)+NXIET(I)*(EPS(I,1)+ZETA*DEPS(I,1))
+  440 CONTINUE
+  450 CONTINUE
+      COF=WT(L,INT1)*WT(M,INT2)*DETJ
+      DO 470 I=1,MEK
+      I1=(I-1)*5
+      COF1=COF*EPSI(1)
+      COF2=TH(I)*.5*EPSI(1)*COF
+      DO 460 II=1,3
+      II1=I1+II
+      R(II1)=R(II1)+COF1*(A5(I,II,1)+A5(I,II,2))
+  460 CONTINUE
+      DO 470 II=1,2
+      II1=I1+II+3
+      R(II1)=R(II1)+COF2*(ZETA*(A7(I,II,1)+A7(I,II,2)))
+  470 CONTINUE
+      GO TO 800
+  500 CONTINUE
+      IF(INT3-1)510,510,650
+  510 CONTINUE
+C
+C     ******************************************************************
+C
+C     ANALYTICALLY INTEGRATION IN ZE GENERAL INITAIL STRAIN GIVEN
+C
+C     ******************************************************************
+C
+C
+C     CALCULATE THE GIVEN INITIAL STRAIN IN THE INT.POINT
+      DO 530 I=1,5
+      EPSI(I)=0.
+  530 CONTINUE
+      DO 550 I=1,MEK
+      DO 540 II=1,5
+      EPSI(II)=EPSI(II)+NXIET(I)*EPS(I,II)
+  540 CONTINUE
+  550 CONTINUE
+      COF=WT(L,INT1)*WT(M,INT2)*DETJ
+      DO 630 I=1,MEK
+      I1=(I-1)*5
+      COF1=2*COF
+      DO 560 II=1,3
+      II1=I1+II
+      R(II1)=R(II1)+COF1*(A5(I,II,1)*EPSI(1)+A5(I,II,2)*EPSI(2)+A5(I,II,
+     13)*EPSI(3)+A5(I,II,4)*EPSI(4)+A5(I,II,5)*EPSI(5))
+  560 CONTINUE
+      COF2=TH(I)*COF
+      DO 570 II=1,2
+      II1=I1+II+3
+      R(II1)=R(II1)+COF2*(A6(I,II,4)*EPSI(4)+A6(I,II,5)*EPSI(5))
+  570 CONTINUE
+      IF(ICN-1)630,630,580
+C
+C     CONTRIBUTION FROM INITIAL STRAIN VARIATION THROUGH THICKNESS
+C
+  580 CONTINUE
+      DO 590 II=1,5
+      DEPSI(II)=0.
+  590 CONTINUE
+      DO 610 I1=1,MEK
+      DO 600 II=1,5
+      DEPSI(II)=DEPSI(II)+NXIET(I1)*DEPS(I1,II)
+  600 CONTINUE
+  610 CONTINUE
+      COF3=COF*TH(I)*.33333333
+      DO 620 II=1,2
+      II1=I1+II+3
+      R(II1)=R(II1)+COF3*(A7(I,II,1)*DEPSI(1)+A7(I,II,2)*DEPSI(2)+
+     1A7(I,II,3)*DEPSI(3)+A7(I,II,4)*DEPSI(4)+A7(I,II,5)*DEPSI(5))
+  620 CONTINUE
+  630 CONTINUE
+      GO TO 800
+  650 CONTINUE
+C
+C     ******************************************************************
+C
+C     NUMERICAL INTEGRATION IN ZE. GENERAL INITIAL STRAIN GIVEN
+C
+C     ******************************************************************
+C
+C     CALCULATE THE GIVEN INITIAL STRAIN IN THE INT.POINT
+C
+      DO 660 I=1,5
+  660 EPSI(I)=0.
+      IF(ICN-1)670,670,700
+C
+C     CONSTANT STRAIN THROUGH THICKNESS
+C
+  670 DO 690 I=1,MEK
+      DO 680 II=1,5
+      EPSI(II)=EPSI(II)+NXIET(I)*EPS(I,II)
+  680 CONTINUE
+  690 CONTINUE
+      GO TO 730
+C
+C     VARIABLE STRAIN THROUGH THICKNESS
+C
+  700 CONTINUE
+      DO 720 I=1,MEK
+      DO 710 II=1,5
+      EPSI(II)=EPSI(II)+NXIET(I)*(EPS(I,II)+ZETA*DEPS(I,II))
+  710 CONTINUE
+  720 CONTINUE
+  730 CONTINUE
+      COF=WT(L,INT1)*WT(M,INT2)*DETJ
+      DO 760 I=1,MEK
+      I1=(I-1)*5
+      COF2=TH(I)*.5*COF
+      DO 740 II=1,3
+      II1=I1+II
+      R(II1)=R(II1)+COF*(A5(I,II,1)*EPSI(1)+A5(I,II,2)*EPSI(2)+
+     1       A5(I,II,3)*EPSI(3)+A5(I,II,4)*EPSI(4)+A5(I,II,5)*EPSI(5))
+  740 CONTINUE
+      DO 750 II=1,2
+      II1=I1+II+3
+      R(II1)=R(II1)+COF2*(A7(I,II,1)*EPSI(1)+A7(I,II,2)*EPSI(2)+
+     1       A7(I,II,3)*EPSI(3)+A7(I,II,4)*EPSI(4)+A7(I,II,5)*EPSI(5))
+     2      *ZETA+COF2*(A6(I,II,4)*EPSI(4)+A6(I,II,5)*EPSI(5))
+  750 CONTINUE
+  760 CONTINUE
+C
+C     END OF INTEGRATION LOOP
+C
+  800 CONTINUE
+  810 CONTINUE
+  820 CONTINUE
+C
+C     PRINT
+C
+      IF(IPSW-2)840,830,830
+  830 CONTINUE
+      WRITE(IW,6100)
+      CALL MPRT30(R,1,NEK,IW)
+      WRITE(IW,6090)IEL
+  840 CONTINUE
+      IF(IERR)850,860,860
+  850 CONTINUE
+      WRITE(IW,6060)
+      WRITE(IW,6070)IERR
+      WRITE(IW,6080)IEL
+  860 CONTINUE
+C
+ 6000 FORMAT(///29H ENTERING SCQS34 FOR ELEMENT ,I7,2H :)
+ 6010 FORMAT(/12H     E    = ,1PE12.5,/,12H     NY   = ,1PE12.5,/,
+     1        12H   ICN    = ,I5)
+C 6020 FORMAT(8(/7H     TH,I1,4H  = ,1PE12.5))
+C 6030 FORMAT( 8(/7H     XG,I1,4H  = ,1PE12.5,/,7H     YG,I1,4H  = ,1PE12
+C     1.5,/,7H     ZG,I1,4H  = ,1PE12.5))
+C 6040 FORMAT(8(/7H   EPSX,I1,4H  = ,1PE12.5,/,7H   EPSY,I1,4H  = ,1PE12.
+C     15,/,7H  TAUXY,I1,4H  = ,1PE12.5,/,7H  TAUXZ,I1,4H  = ,1PE12.5,/,
+C     17H  TAUYZ,I1,4H  = ,1PE12.5))
+C 6050 FORMAT(  8(/7H  DEPSX,I1,4H  = ,1PE12.5,/,7H  DEPSY,I1,4H  = ,1PE1
+C     12.5,/,7H DTAUXY,I1,4H  = ,1PE12.5,/,7H DTAUXZ,I1,4H  = ,1PE12.5,/,
+C     17H DTAUYZ,I1,4H  = ,1PE12.5))
+ 6060 FORMAT(///33H *** ERROR RETURN FROM SCQS34 *** )
+ 6070 FORMAT(/17H     ERROR FLAG =,I3)
+ 6080 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+ 6090 FORMAT(/28H LEAVING SCQS34 FOR ELEMENT ,I7 )
+ 6100 FORMAT(/24H     ELEMENT LOAD VECTOR )
+      RETURN
+      END
+      SUBROUTINE SCQS35(EM,EML,XG,YG,ZG,TH,IEL,RO,INT1,INT2,LAMBI,
+     1                  ICODIR,IMAS,IPSW,IW,IERR)
+C     ******************************************************************
+C
+C         E L E M E N T  L I B R A R Y  SUBROUTINE SCQS35
+C
+C
+C           SCQS35 THE CONSISTENT OR LUMPED MASS-MATRIX FOR A 8-NODES
+C           SUBPARAMETRIC QUADRILATERAL CURVED 8-NODES SHELL ELEMENT
+C           THE MASS-MATRIX IS REFERRED TO GLOBAL CARTESIAN COORDINATE
+C           SYSTEM WITH RESPECT TO TRANSLATIONAL MASS COMPONENTS AND
+C           LOCAL NODE-COORDINATESYSTEMS WHEN ROTATIONAL MASS COMPONENTS
+C           CONCERNED
+C
+C           PROGRAMMED BY :J.H.WERGELAND
+C
+C           DATE/VERSION  :31.10.73/01
+C
+C  REVISION:
+C     79O420   A.S COMPUTAS   KLEM, FERDINAND
+C
+C
+C     ******************************************************************
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION     EM(40,40)     ,EML(40)       ,XG(8)         ,
+     1              YG(8)         ,ZG(8)         ,TH(8)         ,
+     2              LAMBI(8,3,3)  ,XII(8)        ,ETI(8)        ,
+     3              DNXI(8)       ,DNET(8)       ,NXIET(8)      ,
+     4              JA(3,3)       ,JI(3,3)       ,WT(4,4)       ,
+     5              XV(4,4)
+C
+      DOUBLE PRECISION NXIET,LAMBI,JA,JI
+C
+      PARAMETER ( MEK=8, NEK=5*MEK )
+C
+      IERR=0
+C
+      DO 20 I=1,NEK
+      DO 10 J=1,NEK
+      EM(I,J)=0.
+   10 CONTINUE
+      EML(I)=0.
+   20 CONTINUE
+C
+C     PRINT ?
+C
+      IF(IPSW-2) 40,30,30
+   30 WRITE(IW,6000)IEL
+      WRITE(IW,6010)RO
+C      WRITE(IW,6020)((I,TH(I)),I=1,8)
+C      WRITE(IW,6030)(((I,XG(I)),(I,YG(I)),(I,ZG(I))),I=1,8)
+   40 CONTINUE
+C
+C     TEST IF THE ELEMENT IS DEGENERATED
+C
+      CALL CHQA30(XG,YG,ZG,IERR)
+      IF(IERR)320,45,45
+   45 CONTINUE
+C
+C     SET ABCISSA AND WEIGHT FUNCTION FOR THE GIVEN INTEGRATION TYPE
+C
+C
+C     ABSICCA IN GAUSSIAN QUADRATURE INTEGRATION
+C
+      XV(1,1)=0.
+      XV(1,2)=-.577350269
+      XV(2,2)=-XV(1,2)
+      XV(1,3)=-.774596669
+      XV(2,3)=0.
+      XV(3,3)=-XV(1,3)
+      XV(1,4)=-.861136312
+      XV(2,4)=-.339981043
+      XV(3,4)=-XV(2,4)
+      XV(4,4)=-XV(1,4)
+C
+C     WEIGHT COEFFICIENTS OF THE GAUSSIAN QUADRATURE FORMULA
+C
+      WT(1,1)=2.
+      WT(1,2)=1.
+      WT(2,2)=1.
+      WT(1,3)=.55555556
+      WT(2,3)=.88888889
+      WT(3,3)=WT(1,3)
+      WT(1,4)=.347854845
+      WT(2,4)=.652145155
+      WT(3,4)=WT(2,4)
+      WT(4,4)=WT(1,4)
+C
+C     CALCULATE DIRECTION COSINE MATRICES
+C     FOR THE LOCAL NODE COORDINATE SYSTEMS
+C
+      CALL SCQS30(XG,YG,ZG,IEL,ICODIR,XII,ETI,LAMBI,IPSW,IW,IERR)
+      IF(IERR)320,55,55
+   55 CONTINUE
+C
+C     TEST IF NUMERICAL INTEGRATION IN THE ZE-DIR IS NECESSARLY
+C
+C     TEST IF THE ELEMENT IS CONCIDERABLY CURVED
+C
+      INT3=1
+      SUM=0.
+      DO 60 I=2,MEK
+      SUM=SUM+(LAMBI(1,3,1)*LAMBI(I,3,1)+LAMBI(1,3,2)*LAMBI(I,3,2)+
+     1         LAMBI(1,3,3)*LAMBI(I,3,3))
+   60 CONTINUE
+      IF(SUM-6.95)65,65,70
+   65 INT3=2
+      GO TO 90
+   70 CONTINUE
+C
+C
+C     TEST IF CONSIDERABLE THICKNESS VARIATION THROUGHOUT THE ELEMENT
+C
+      THMID=0.
+      DO 75 I=1,MEK
+   75 THMID=THMID+TH(I)
+      THMID=THMID/MEK
+      THMIDI=1./THMID
+      RDTH=0.
+      DO 85 I=1,MEK
+      DELTH=ABS(TH(I)-THMID)*THMIDI
+      IF(DELTH-RDTH)85,85,80
+   80 RDTH=DELTH
+   85 CONTINUE
+      IF(RDTH-.05)90,90,65
+   90 CONTINUE
+C
+C     CONSISTENT MASS COMPUTATION
+C
+C
+C     TEST IF NUMERICAL INTEGRATION IN ZE DIRECTION
+C
+      IF(INT3-1)95,95,150
+   95 CONTINUE
+C
+C     CARRY OUT CONSISTENT MASS MATRIX COMPUTATION WITH NUMERICAL
+C     INTEGRATION IN XI AND ETA  AND ANALYTICALLY IN ZETA
+C
+      DO 140 L=1,INT1
+      DO 130 M=1,INT2
+C
+C     COMPUTE THE SHAPE FUNCTION NXIET,IN THE INTEGRATION POINT
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+C
+C     COMPUTE THE JACOBIAN DETERMINANT IN THE INTEGRATION POINT
+C
+      ZETA=0.0D0
+      CALL JACO30(JA,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZETA,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)320,100,100
+C
+  100 CONTINUE
+C
+      COF=DETJ*WT(L,INT1)*WT(M,INT2)*RO
+C
+C     START LOOP ON ELEMENT NODES
+C
+      DO 120 I=1,MEK
+      DO 115 J=1,I
+      II=(I-1)*5
+      JJ=(J-1)*5
+      A=NXIET(I)*NXIET(J)*COF*2
+      DO 105 IL=1,3
+      EM(II+IL,JJ+IL)=EM(II+IL,JJ+IL)+A
+  105 CONTINUE
+      AA=A*TH(I)*TH(J)*.0833333333
+      DO 110 IL=4,5
+C
+      EM(II+IL,JJ+IL)=AA*(LAMBI(I,2,1)*LAMBI(J,2,1)+LAMBI(I,2,2)*
+     1LAMBI(J,2,2)+LAMBI(I,2,3)*LAMBI(J,2,3))+EM(II+IL,JJ+IL)
+C
+  110 CONTINUE
+C
+      EM(II+4,JJ+5)=-AA*(LAMBI(I,2,1)*LAMBI(J,1,1)+LAMBI(I,2,2)*
+     1LAMBI(J,1,2)+LAMBI(I,2,3)*LAMBI(J,1,3))+EM(II+4,JJ+5)
+      EM(II+5,JJ+4)=-AA*(LAMBI(J,2,1)*LAMBI(I,1,1)+LAMBI(J,2,2)*
+     1LAMBI(I,1,2)+LAMBI(J,2,3)*LAMBI(I,1,3))+EM(II+5,JJ+4)
+  115 CONTINUE
+  120 CONTINUE
+  130 CONTINUE
+  140 CONTINUE
+C
+      GO TO 250
+C
+C     CARRY OUT THE MASS MATRIX COMPUTATION WITH NUMERICAL INTEGRATION
+C     IN XI,ETA AND ZETA
+C
+  150 CONTINUE
+C
+      DO 240 L=1,INT1
+      DO 230 M=1,INT2
+      DO 220 N=1,INT3
+      ZETA=XV(N,INT3)
+C
+C     COMPUTE THE SHAPE FUNCTION NXIET,IN THE INTEGRATION POINT
+C
+      CALL DNI830(DNXI,DNET,NXIET,XV(L,INT1),XV(M,INT2),XII,ETI)
+C
+C     COMPUTE THE JACOBIAN DETERMINANT IN THE INTEGRATION POINT
+C
+      CALL JACO30(JA,JI,DETJ,DNXI,DNET,NXIET,XG,YG,ZG,TH,LAMBI,ZETA,
+     1            IEL,MEK,IPSW,IW,IERR)
+      IF(IERR)320,170,170
+C
+  170 CONTINUE
+C
+      COF=DETJ*WT(L,INT1)*WT(M,INT2)*RO
+C
+C     START LOOP ON ELEMENT NODES
+C
+      DO  210 I=1,MEK
+      DO  200 J=1,I
+      II=(I-1)*5
+      JJ=(J-1)*5
+      A=NXIET(I)*NXIET(J)*COF
+      DO 180 IL=1,3
+      EM(II+IL,JJ+IL)=EM(II+IL,JJ+IL)+A
+  180 CONTINUE
+      AA=A*TH(I)*TH(J)*ZETA*ZETA*.25
+      DO 190 IL=4,5
+      EM(II+IL,JJ+IL)=AA*(LAMBI(I,2,1)*LAMBI(J,2,1)+LAMBI(I,2,2)*
+     1LAMBI(J,2,2)+LAMBI(I,2,3)*LAMBI(J,2,3))+EM(II+IL,JJ+IL)
+C
+  190 CONTINUE
+C
+      EM(II+4,JJ+5)=-AA*(LAMBI(I,2,1)*LAMBI(J,1,1)+LAMBI(I,2,2)*
+     1LAMBI(J,1,2)+LAMBI(I,2,3)*LAMBI(J,1,3))+EM(II+4,JJ+5)
+      EM(II+5,JJ+4)=-AA*(LAMBI(J,2,1)*LAMBI(I,1,1)+LAMBI(J,2,2)*
+     1LAMBI(I,1,2)+LAMBI(J,2,3)*LAMBI(I,1,3))+EM(II+5,JJ+4)
+  200 CONTINUE
+  210 CONTINUE
+  220 CONTINUE
+  230 CONTINUE
+  240 CONTINUE
+C
+  250 CONTINUE
+C
+      DO 270 I=1,NEK
+      DO 260 J=1,I
+      EM(J,I)=EM(I,J)
+  260 CONTINUE
+  270 CONTINUE
+C
+C     TEST IF LUMPED MASS
+C
+      IF(IMAS-1)315,280,315
+C
+C     COMPUTATION OF LUMPED MASS-MATRIX
+C
+  280 CONTINUE
+      TOTD=0.
+      TOTM=0.
+      TOTMR=0
+      TOTDR=0
+      DO 300 I=1,MEK
+      NI=(I-1)*5+1
+      NI1=NI+3
+      NI2=NI+4
+      DO 290 J=1,MEK
+      NJ=(J-1)*5+1
+      NJ1=NJ+3
+      NJ2=NJ+4
+      TOTM=TOTM+EM(NI,NJ)
+      TOTMR=TOTMR+EM(NI1,NJ1)+EM(NI2,NJ2)
+  290 CONTINUE
+      TOTD=TOTD+EM(NI,NI)
+      TOTDR=TOTDR+EM(NI1,NI1)+EM(NI2,NI2)
+  300 CONTINUE
+      F=TOTM/TOTD
+      FM=TOTMR/TOTDR
+      DO 314 I=1,MEK
+      NI=(I-1)*5
+      DO 310 I1=1,3
+      IN=NI+I1
+      EML(IN)=EM(IN,IN)*F
+  310 CONTINUE
+      DO 312 I1=4,5
+      IN=NI+I1
+      EML(IN)=EM(IN,IN)*FM
+  312 CONTINUE
+  314 CONTINUE
+  315 CONTINUE
+C
+C     IMPERMISIBLE ELEMENT SHAPE
+C
+      IF(IERR)320,330,330
+  320 WRITE(IW,6040)
+      WRITE(IW,6050) IERR
+      WRITE(IW,6060)IEL
+      WRITE(IW,6070)IEL
+  330 CONTINUE
+C
+C
+C     PRINT ?
+C
+      IF(IPSW-2)350,340,340
+  340 WRITE(IW,6080)
+      CALL MPRT30(EM,NEK,NEK,IW)
+      WRITE(IW,6090)
+      CALL MPRT30(EML,1,NEK,IW)
+      WRITE(IW,6070)IEL
+  350 CONTINUE
+ 6000 FORMAT(///29H ENTERING SCQS35 FOR ELEMENT ,I7,2H :)
+ 6010 FORMAT(/12H     RO   = ,1PE12.5)
+C 6020 FORMAT(8(/7H     TH,I1,4H  = ,1PE12.5))
+C 6030 FORMAT(  8(/7H     XG,I1,4H  = ,1PE12.5,/7H     YG,I1,4H  = ,1PE12
+C     1.5,/7H     ZG,I1,4H  = ,1PE12.5))
+ 6040 FORMAT(///33H *** ERROR RETURN FROM SCQS35 *** )
+ 6050 FORMAT(/17H     ERROR FLAG =,I3)
+ 6060 FORMAT(/13H     ELEMENT ,I7,12H    IN ERROR )
+ 6070 FORMAT(/28H LEAVING SCQS35 FOR ELEMENT ,I7)
+ 6080 FORMAT(/24H     ELEMENT MASS MATRIX )
+ 6090 FORMAT(/31H     LUMPED ELEMENT MASS MATRIX )
+      RETURN
+      END

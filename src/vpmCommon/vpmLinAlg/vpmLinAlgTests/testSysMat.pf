@@ -1,0 +1,99 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for the system matrix module.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 26 May 2017
+
+@test
+subroutine sysMatWriter
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, assertGreaterThan
+  use funit, only : sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, assertGreaterThan
+  use pfunit_mod, only : sourceLocation, anyExceptions
+#endif
+  use KindModule         , only : i8, dp
+  use SysMatrixTypeModule, only : SysMatrixType, saveSysMat, restoreSysMat
+  use SysMatrixTypeModule, only : deAllocateSysMatrix
+
+  implicit none
+
+  type(SysMatrixType) :: A
+  integer             :: iFile, ierr
+  integer(i8)         :: nVal
+
+  !! Define some matrix size parameters to make it larger than 2GB in-core.
+  !! Consider replacing them with some real-case values, and/or (even better)
+  !! make the test parameterized over different value sets (TODO).
+  integer, parameter  :: nDof = 1000000, nEq = 1000000, nZeroL = 270000000
+  integer, parameter  :: nmsica = 1, nmsifa = 2, nmtree = 3 ! Dummies
+
+  print*,'  * Initializing the system matrix'
+  call initSparseMatrix (nDof,nEq,nZeroL,nmsica,nmsifa,nmtree,A,ierr)
+  @assertEqual(ierr,0)
+
+  ierr = 0
+  nVal = size(A%value,kind=i8)
+  A%value(1) = 1.0_dp
+  A%value(nVal) = 2.0_dp
+  print*,'  * Writing',nVal,' doubles to temporary file..'
+  call saveSysMat (A,'test matrix',nVal,iFile,ierr)
+  @assertGreaterThan(ierr,-1)
+
+  A%value(1) = 0.0_dp
+  A%value(nVal) = 0.0_dp
+  print*,'  * Reading',nVal,' doubles from temporary file..'
+  call restoreSysMat (A,'test matrix',nVal,iFile,ierr)
+  @assertGreaterThan(ierr,-1)
+  @assertEqual(A%value(1),1.0_dp)
+  @assertEqual(A%value(nVal),2.0_dp)
+
+  print*,'  * Cleanup',A%value(1:2),A%value(nval)
+  call deAllocateSysMatrix (A)
+
+end subroutine sysMatWriter
+
+
+subroutine initSparseMatrix (nDof,nEq,nZeroL,nmsica,nmsifa,nmtree,A,ierr)
+
+  use sprKindModule      , only : ik
+  use SysMatrixTypeModule, only : SysMatrixType, nspar_p, sparseMatrix_p
+  use SysMatrixTypeModule, only : nullifySysMatrix, allocateSysMatrix
+  use SysMatrixTypeModule, only : reAllocate
+  use AllocationModule   , only : reAllocate
+
+  implicit none
+
+  integer            , intent(in)  :: nDof, nEq, nZeroL, nmsica, nmsifa, nmtree
+  type(SysMatrixType), intent(out) :: A
+  integer            , intent(out) :: ierr
+
+  ierr = 0
+  call nullifySysMatrix (A)
+
+  A%storageType = sparseMatrix_p
+  call reAllocate ('initSparseMat',A%sparse,nspar_p,ierr)
+  if (ierr /= 0) return
+
+  A%sparse%mspar(2)  = int(nmsica,ik)
+  A%sparse%mspar(3)  = int(nmsifa,ik)
+  A%sparse%mspar(8)  = int(nEq,ik)
+  A%sparse%mspar(16) = int(nZeroL,ik)
+  A%sparse%mspar(36) = int(nmtree,ik)
+  call reAllocate ('initSparseMat',A%meqn8,nDof,ierr)
+  call reAllocate ('initSparseMat',A%sparse%msica,nmsica,ierr)
+  call reAllocate ('initSparseMat',A%sparse%msifa,nmsifa,ierr)
+  call reAllocate ('initSparseMat',A%sparse%mvarnc,2*nEq,ierr)
+  call reAllocate ('initSparseMat',A%sparse%mtrees,nmtree,ierr)
+  if (ierr == 0) call allocateSysMatrix (A,ierr,6,'My System Matrix')
+  if (ierr /= 0) print*,'*** Allocation failure',ierr
+
+end subroutine initSparseMatrix

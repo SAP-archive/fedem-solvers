@@ -1,0 +1,432 @@
+C     SPDX-FileCopyrightText: 2023 SAP SE
+C
+C     SPDX-License-Identifier: Apache-2.0
+C
+C     This file is part of FEDEM - https://openfedem.org
+C
+      SUBROUTINE FTSA31(EK,AKM,AKB,E,X,Y,Z,TH,IOP,IDN,IW,IPSW,IERR)
+C
+C***********************************************************************
+C
+C   FINITE ELEMENT LIBRARY :   FTSA31                      SINTEF / NTH
+C
+C
+C     FTSA31 GENERATES THE (18*18) STIFFNESS MATRIX  EK  (AND THE TWO
+C     KAPPA-MATRICES) FOR A FLAT TRIANGULAR THIN SHELL ELEMENT COMPOSED
+C     OF THE  HLST  MEMBRANE ELEMENT AND THE  TEBA  BENDING ELEMENT.
+C     THE ELEMENT MAY HAVE LINEARLY VARYING THICKNESS AND GENERAL AN-
+C     ISOTROPIC MATERIAL PROPERTIES
+C
+C
+C     PROGRAMMED BY :  K.BELL
+C
+C     DATE/VERSION  :  10.02.75 / 01
+C
+C***********************************************************************
+C
+      INTEGER           I,IDN,IERR,II,IOP,IPSW,IW,J,JJ,K,L,L1,LL
+      INTEGER           M,MM,N,NN,IPERM(9),JPERM(9)
+      DOUBLE PRECISION  EK(18,18),AKM(7,9),AKB(9,9),E(3,3),X(3)
+      DOUBLE PRECISION  Y(3),Z(3),TH(3),PEK(9,9),C(3,3),XL(3),YL(3)
+      DOUBLE PRECISION  AUX1,COSG,SING,SL21,SL31,THK
+      DOUBLE PRECISION  X21,X31,Y21,Y31,Z21,Z31
+C
+      DATA  IPERM(1),IPERM(2),IPERM(3),IPERM(4),IPERM(5),IPERM(6),
+     +      IPERM(7),IPERM(8),IPERM(9) /3,4,5,9,10,11,15,16,17/
+      DATA  JPERM(1),JPERM(2),JPERM(3),JPERM(4),JPERM(5),JPERM(6),
+     +      JPERM(7),JPERM(8),JPERM(9) /1,2,6,7,8,12,13,14,18/
+C
+C     PRINT ?
+C
+      IF (IPSW-2) 30,10,10
+   10 WRITE(IW,6000) IDN
+      WRITE(IW,6010)
+      WRITE(IW,6020) TH(1),TH(2),TH(3)
+      WRITE(IW,6030)
+      WRITE(IW,6040) X(1),X(2),X(3)
+      WRITE(IW,6050) Y(1),Y(2),Y(3)
+      WRITE(IW,6055) Z(1),Z(2),Z(3)
+      WRITE(IW,6060)
+      DO 20 I=1,3
+      WRITE(IW,6070) E(I,1),E(I,2),E(I,3)
+   20 CONTINUE
+C
+C     AVERAGE ELEMENT THICKNESS  THK
+C
+   30 THK = (TH(1)+TH(2)+TH(3))/3.
+C
+C     LOCAL COORDINATES
+C
+      X21 = X(2)-X(1)
+      Y21 = Y(2)-Y(1)
+      Z21 = Z(2)-Z(1)
+      X31 = X(3)-X(1)
+      Y31 = Y(3)-Y(1)
+      Z31 = Z(3)-Z(1)
+      SL21 = DSQRT(X21*X21 + Y21*Y21 + Z21*Z21)
+      SL31 = DSQRT(X31*X31 + Y31*Y31 + Z31*Z31)
+      COSG = (X31*X21 + Y31*Y21 + Z31*Z21)/(SL31*SL21)
+      AUX1 = 1.-COSG*COSG
+      IF (AUX1) 40,40,50
+   40 SING = 0.
+      GO TO 60
+   50 SING = DSQRT(AUX1)
+C
+   60 XL(1) = 0.
+      XL(2) = SL21
+      XL(3) = SL31*COSG
+      YL(1) = 0.
+      YL(2) = 0.
+      YL(3) = SL31*SING
+C
+      DO 70 I=1,18
+      DO 70 J=1,18
+      EK(I,J) = 0.
+   70 CONTINUE
+C
+C     THE 3*3 MATRIX OF DIRECTION COSINES
+C
+      CALL DIRC30(C,X,Y,Z)
+C
+C     MEMBRANE STIFFNESS
+C
+      CALL HLST31(PEK,AKM,E,XL,YL,THK,IOP,IDN,IW,0,IERR)
+      IF (IERR) 1000,100,100
+C
+C     ADD MEMBRANE STIFFNESS INTO SHELL STIFFNESS
+C
+  100 DO 200 I=1,9
+      L = JPERM(I)
+      DO 150 J=1,9
+      K = JPERM(J)
+      EK(L,K) = PEK(I,J)
+  150 CONTINUE
+  200 CONTINUE
+C
+C     BENDING STIFFNESS
+C
+      CALL TEBA31(PEK,AKB,E,XL,YL,TH,IDN,IW,0,IERR)
+      IF (IERR) 1000,300,300
+C
+C     ADD BENDING STIFFNESS INTO SHELL STIFFNESS
+C
+  300 DO 400 I=1,9
+      L = IPERM(I)
+      DO 350 J=1,9
+      K = IPERM(J)
+      EK(L,K) = PEK(I,J)
+  350 CONTINUE
+  400 CONTINUE
+C
+C     TRANSFORM TO GLOBAL COORDINATES
+C
+      DO 700 MM=1,3
+      M = (MM-1)*6
+      DO 600 NN=MM,3
+      N = (NN-1)*6
+C
+      DO 450 JJ=1,6
+      J = N+JJ
+      DO 430 LL=1,2
+      L1 = (LL-1)*3
+      L  = M+L1
+      DO 410 I=1,3
+      II = L1+I
+      PEK(II,JJ) = C(1,I)*EK(L+1,J)+C(2,I)*EK(L+2,J)+C(3,I)*EK(L+3,J)
+  410 CONTINUE
+  430 CONTINUE
+  450 CONTINUE
+C
+      DO 500 I=1,6
+      II = M+I
+      DO 480 LL=1,2
+      L  = (LL-1)*3
+      L1 = N+L
+      DO 460 J=1,3
+      JJ = L1+J
+      EK(II,JJ) = PEK(I,L+1)*C(1,J)+PEK(I,L+2)*C(2,J)+PEK(I,L+3)*C(3,J)
+  460 CONTINUE
+  480 CONTINUE
+  500 CONTINUE
+C
+  600 CONTINUE
+  700 CONTINUE
+C
+C     LOWER TRIANGLE OF  EK  (FROM SYMMETRY)
+C
+      DO 850 I=1,18
+      DO 850 J=I,18
+      EK(J,I) = EK(I,J)
+  850 CONTINUE
+C
+      GO TO 2000
+C
+C     ERROR RETURN
+C
+ 1000 WRITE(IW,6080)
+      WRITE(IW,6090) IDN
+C
+C     PRINT ?
+C
+ 2000 IF (IPSW-2) 3000,2020,2010
+ 2010 WRITE(IW,6100)
+      CALL MPRT30(EK,18,18,IW)
+ 2020 WRITE(IW,6110) IDN
+C
+C
+ 3000 RETURN
+C
+C
+ 6000 FORMAT(///29H ENTERING FTSA31 FOR ELEMENT ,I7,2H :)
+ 6010 FORMAT(/25H     CORNER THICKNESSES :)
+ 6020 FORMAT(9H     H1 =,1PE11.4,8H    H2 =,1PE11.4,8H    H3 =,1PE11.4)
+ 6030 FORMAT(/25H     CORNER COORDINATES :)
+ 6040 FORMAT(9H     X1 =,1PE11.4,8H    X2 =,1PE11.4,8H    X3 =,1PE11.4)
+ 6050 FORMAT(9H     Y1 =,1PE11.4,8H    Y2 =,1PE11.4,8H    Y3 =,1PE11.4)
+ 6055 FORMAT(9H     Z1 =,1PE11.4,8H    Z2 =,1PE11.4,8H    Z3 =,1PE11.4)
+ 6060 FORMAT(/25H     ELASTICITY MATRIX  :)
+ 6070 FORMAT(1PE18.7,1P,2E15.7)
+ 6080 FORMAT(///33H *** ERROR RETURN FROM FTSA31 ***)
+ 6090 FORMAT(/13H     ELEMENT ,I7,11H   IN ERROR)
+ 6100 FORMAT(/31H     ELEMENT STIFFNESS MATRIX :)
+ 6110 FORMAT(///28H LEAVING FTSA31 FOR ELEMENT ,I7)
+C
+C
+      END
+      SUBROUTINE FTSA32(SMM,SMB,AKM,AKB,X,Y,Z)
+C
+C***********************************************************************
+C
+C   FINITE ELEMENT LIBRARY :   FTSA32                      SINTEF / NTH
+C
+C
+C     FTSA31 DETERMINES TWO STRESS MATRICES  SMM  AND  SMB  YIELDING THE
+C     LOCAL MEMBRANE FORCES AND THE LOCAL MOMENTS, RESPECTIVELY, AT THE
+C     CENTROID OF THE  FTSA  ELEMENT
+C
+C
+C     PROGRAMMED BY :  K.BELL
+C
+C     DATE/VERSION  :  18.02.75 / 01
+C
+C***********************************************************************
+C
+      INTEGER           I
+      DOUBLE PRECISION  AUX1,COSG,SING,SL21,SL31,X21,X31
+      DOUBLE PRECISION  Y21,Y31,Z21,Z31
+      DOUBLE PRECISION  SMM(3,9),SMB(3,9),AKM(7,9),AKB(9,9)
+      DOUBLE PRECISION  X(3),Y(3),Z(3),XL(3),YL(3),ZZ(3)
+C
+C     NATURAL (AREA) COORDINATES OF THE CENTROID
+C
+      DO 20 I=1,3
+      ZZ(I) = 1./3.
+   20 CONTINUE
+C
+C     LOCAL COORDINATES
+C
+      X21 = X(2)-X(1)
+      Y21 = Y(2)-Y(1)
+      Z21 = Z(2)-Z(1)
+      X31 = X(3)-X(1)
+      Y31 = Y(3)-Y(1)
+      Z31 = Z(3)-Z(1)
+      SL21 =  DSQRT(X21*X21 + Y21*Y21 + Z21*Z21)
+      SL31 =  DSQRT(X31*X31 + Y31*Y31 + Z31*Z31)
+      COSG = (X31*X21 + Y31*Y21 + Z31*Z21)/(SL31*SL21)
+      AUX1 = 1.-COSG*COSG
+      IF (AUX1) 40,40,50
+   40 SING = 0.
+      GO TO 60
+   50 SING =  DSQRT(AUX1)
+C
+   60 XL(1) = 0.
+      XL(2) = SL21
+      XL(3) = SL31*COSG
+      YL(1) = 0.
+      YL(2) = 0.
+      YL(3) = SL31*SING
+C
+C     TEH MEMBRANE STRESS MATRIX  SMM
+C
+      CALL HLST32(SMM,AKM,XL,YL,ZZ)
+C
+C     THE BENDING STRESS MATRIX  SMB
+C
+      CALL TEBA32(SMB,AKB,ZZ)
+C
+C
+      RETURN
+      END
+      SUBROUTINE FTSA33(F,X,Y,Z,PX,PY,PZ,LOP)
+C
+C***********************************************************************
+C
+C   FINITE ELEMENT LIBRARY :   FTSA33                      SINTEF / NTH
+C
+C
+C     FTSA33 DETERMINES A LUMPED LOAD VECTOR  F  (REFERRED TO GLOBAL
+C     COORDINATES) DUE TO LINEARLY VARYING DISTRIBUTED SURFACE LOAD
+C     (DEFINED IN LOCAL OR GLOBAL COORDINATES) ON THE  FTSA  ELEMENT
+C
+C
+C     PROGRAMMED BY :  K.BELL
+C
+C     DATE/VERSION  :  18.02.75 / 01
+C
+C***********************************************************************
+C
+      INTEGER           I,J,K,L,M,N,LOP,IP(3)
+      DOUBLE PRECISION  A,AUX,AUX1,COSG,SING,SL21,SL31
+      DOUBLE PRECISION  X21,X31,Y21,Y31,Z21,Z31
+      DOUBLE PRECISION  F(18),X(3),Y(3),Z(3),PX(3),PY(3),PZ(3)
+      DOUBLE PRECISION  XL(3),YL(3),C(3,3),P1(3),P2(3),P3(3),B(3)
+C
+      DATA IP(1),IP(2),IP(3)/2,3,1/
+C
+      DO 20 I=1,18
+      F(I) = 0.
+   20 CONTINUE
+C
+C     LOCAL COORDINATES
+C
+      X21 = X(2)-X(1)
+      Y21 = Y(2)-Y(1)
+      Z21 = Z(2)-Z(1)
+      X31 = X(3)-X(1)
+      Y31 = Y(3)-Y(1)
+      Z31 = Z(3)-Z(1)
+      SL21 =  DSQRT(X21*X21 + Y21*Y21 + Z21*Z21)
+      SL31 =  DSQRT(X31*X31 + Y31*Y31 + Z31*Z31)
+      COSG = (X31*X21 + Y31*Y21 + Z31*Z21)/(SL31*SL21)
+      AUX1 = 1.-COSG*COSG
+      IF (AUX1) 40,40,50
+   40 SING = 0.
+      GO TO 60
+   50 SING =  DSQRT(AUX1)
+C
+   60 XL(1) = 0.
+      XL(2) = SL21
+      XL(3) = SL31*COSG
+      YL(1) = 0.
+      YL(2) = 0.
+      YL(3) = SL31*SING
+C
+C     ELEMENT AREA (DIVIDED BY 12)
+C
+      A = XL(1)*YL(2) + XL(2)*YL(3) + XL(3)*YL(1)
+      A = A - XL(1)*YL(3) - XL(2)*YL(1) - XL(3)*YL(2)
+      A = A/24.
+C
+C     THE 3*3 MATRIX OF DIRECTION COSINES
+C
+      CALL DIRC30(C,X,Y,Z)
+C
+      IF (LOP) 80,80,120
+C
+C     TRANSFER LOCAL LOAD INTENSITIES
+C
+   80 DO 100 I=1,3
+      P1(I) = PX(I)
+      P2(I) = PY(I)
+      P3(I) = PZ(I)
+  100 CONTINUE
+      GO TO 150
+C
+C     TRANSFORM FROM GLOBAL TO LOCAL LOAD INTENSITIES
+C
+  120 DO 140 I=1,3
+      P1(I) = C(1,1)*PX(I) + C(1,2)*PY(I) + C(1,3)*PZ(I)
+      P2(I) = C(2,1)*PX(I) + C(2,2)*PY(I) + C(2,3)*PZ(I)
+      P3(I) = C(3,1)*PX(I) + C(3,2)*PY(I) + C(3,3)*PZ(I)
+  140 CONTINUE
+C
+C     DETERMINE NON-ZERO ELEMENTS OF THE LOCAL LOAD VECTOR, TRANSFORM
+C     AND ADD INTO APPROPRIATE LOCATIONS IN THE GLOBAL LOAD VECTOR
+C
+  150 DO 200 I=1,3
+      J = IP(I)
+      K = IP(J)
+      B(1) = A*(2.*P1(I) + P1(J) + P1(K))
+      B(2) = A*(2.*P2(I) + P2(J) + P2(K))
+      B(3) = A*(2.*P3(I) + P3(J) + P3(K))
+C
+      DO 180 M=1,3
+      AUX = C(1,M)*B(1)
+      DO 170 N=2,3
+      AUX = AUX + C(N,M)*B(N)
+  170 CONTINUE
+      L = 6*I-6+M
+      F(L) = AUX
+  180 CONTINUE
+  200 CONTINUE
+C
+C
+      RETURN
+      END
+      SUBROUTINE FTSA38(VML,VBL,V,X,Y,Z)
+C
+C***********************************************************************
+C
+C   FINITE ELEMENT LIBRARY :   FTSA38                      SINTEF / NTH
+C
+C
+C     FTSA38 DETERMINES TWO SUBVECTORS OF LOCAL NODAL POINT PARAMETERS
+C     FOR THE  FTSA  ELEMENT.  ONE VECTOR (VML) CONTAINS THE LOCAL
+C     MEMBRANE PARAMETERS AND THE OTHER (VBL) CONTAINS THE LOCAL BENDING
+C     PARAMETERS.  THE TOTAL VECTOR OF GLOBAL NODAL POINT PARAMETERS
+C     (V) IS INPUT
+C
+C
+C     PROGRAMMED BY :  K.BELL
+C
+C     DATE/VERSION  :  18.02.75 / 01
+C
+C***********************************************************************
+C
+      INTEGER           I,K,L,N
+      DOUBLE PRECISION  VML(9),VBL(9),V(18),X(3),Y(3),Z(3)
+      DOUBLE PRECISION  A(3),B(3),C(3,3)
+C
+C     THE 3*3 MATRIX OF DIRECTION COSINES
+C
+      CALL DIRC30(C,X,Y,Z)
+C
+C     TRANSFORM V AND TRANSFER ITS ELEMENTS INTO APPROPRIATE LOCATIONS
+C     IN VML AND VBL
+C
+      DO 100 I=1,3
+C
+      A(1) = V(6*I-5)
+      A(2) = V(6*I-4)
+      A(3) = V(6*I-3)
+      N = -1
+C
+   20 DO 40 L=1,3
+      B(L) = C(L,1)*A(1)
+      DO 30 K=2,3
+      B(L) = B(L) + C(L,K)*A(K)
+   30 CONTINUE
+   40 CONTINUE
+C
+      IF (N) 50,50,80
+C
+   50 VML(3*I-2) = B(1)
+      VML(3*I-1) = B(2)
+      VBL(3*I-2) = B(3)
+C
+      A(1) = V(6*I-2)
+      A(2) = V(6*I-1)
+      A(3) = V(6*I)
+      N = 1
+      GO TO 20
+C
+   80 VBL(3*I-1) = B(1)
+      VBL(3*I)   = B(2)
+      VML(3*I)   = B(3)
+C
+  100 CONTINUE
+C
+C
+      RETURN
+      END

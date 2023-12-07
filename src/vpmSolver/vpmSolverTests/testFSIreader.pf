@@ -1,0 +1,88 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for the solver input file reader.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 10 Apr 2020
+
+@test
+subroutine testFSIreader
+#if FT_PFUNIT > 3
+  use funit     , only : assertTrue, assertEqual
+  use funit     , only : sourceLocation, anyExceptions
+  use fUnitExtra, only : srcdir ! pFUnit extension
+#else
+  use pfunit_mod, only : assertTrue, assertEqual
+  use pfunit_mod, only : sourceLocation, anyExceptions
+  use pFUnitArgs, only : srcdir ! pFUnit extension
+#endif
+
+  use TriadTypeModule        , only : TriadType, WriteObject, DeallocateTriads
+  use initiateTriadTypeModule, only : readTriads
+  use headingNameListModule  , only : read_HEADING, modelFile, version
+  use inputUtilities         , only : iuWriteToScratch, iuCopyToScratch
+  use reportErrorModule      , only : setErrorFile
+
+  implicit none
+
+  integer                    :: i, infp, ierr
+  type(TriadType), pointer   :: triads(:)
+  character(128) , parameter :: chfsi = '&TRIAD $'// &
+       'id = 21 $ extId = 3 $ extDescr = "My Triad" $'// &
+       'nDOFs = 6 $ BC = 1 1 1 0 0 0 $ / $'
+
+  write(6,"(//'Testing solver input file reader')")
+  @assertTrue(allocated(srcdir))
+  write(6,"('Source directory: ',A)") srcdir
+  call setErrorFile (6)
+
+  !! Test reading solver input from a string variable
+  infp = 7
+  open(infp,IOSTAT=ierr,STATUS='SCRATCH')
+  @assertEqual(0,ierr)
+  call iuWriteToScratch (infp,chfsi,ierr)
+  @assertEqual(0,ierr)
+  allocate(triads(0))
+  call readTriads (infp,triads,ierr)
+  @assertEqual(0,ierr)
+  close(infp)
+
+  @assertEqual(1,size(triads))
+  do i = 1, size(triads)
+     call writeObject(triads(i),6,3)
+  end do
+  @assertEqual(   triads(1)%id%descr,'My Triad')
+  @assertEqual(21,triads(1)%id%baseId)
+  @assertEqual( 3,triads(1)%id%userId)
+  @assertEqual( 6,triads(1)%nDOFs)
+
+  !! Test reading solver input from a file
+  infp = 8
+  open(infp,IOSTAT=ierr,STATUS='SCRATCH')
+  @assertEqual(0,ierr)
+  call iuCopyToScratch (infp,srcdir//'/models/cantilever-pipe.fsi',ierr)
+  @assertEqual(0,ierr)
+  rewind(infp)
+  call Read_HEADING (infp,ierr)
+  @assertEqual(0,ierr)
+  call readTriads (infp,triads,ierr)
+  @assertEqual(0,ierr)
+  close(infp)
+
+  write(6,"('Model file : ',A)") trim(modelFile)
+  write(6,"('Version    :',F5.2)") version
+  @assertEqual(3.0,version)
+  @assertEqual(6,size(triads))
+  do i = 1, size(triads)
+     call writeObject (triads(i),6,3)
+  end do
+
+  call DeallocateTriads (triads)
+
+end subroutine testFSIreader

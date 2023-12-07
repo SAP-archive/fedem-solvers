@@ -1,0 +1,259 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for stress recovery for thick shell elements.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 1 Feb 2021
+
+@test
+subroutine testShell
+
+#if FT_PFUNIT > 3
+  use fUnit     , only : assertEqual, sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, sourceLocation, anyExceptions
+#endif
+
+  use kindModule       , only : dp
+  use ElStressModule   , only : elStress
+  use manipMatrixModule, only : MatrixPointToArray_real
+  use reportErrorModule, only : setErrorFile
+
+  implicit none
+
+  integer, parameter :: ieltT6 = 31, ieltQ8 = 32
+  integer, parameter :: maxstp = 16, maxnod = 8
+
+  integer  :: i, j, ipst, nenod, nstrp, ierr
+  real(dp) :: EV(6*maxnod), SR(6*maxnod), SS(6*maxnod)
+  real(dp) :: Stress(6*maxstp), Strain(6*maxstp), epsilon
+  real(dp), pointer :: V(:,:)
+  character(len=32) :: message
+
+  call setErrorFile (6)
+  V => MatrixPointToArray_real(EV,6,maxnod)
+
+  !=============================================================================
+  !! Nodal ordering for the 8-noded shell:
+  !!       6
+  !!  7 *--*--* 5
+  !!    |     |
+  !!  8 *     * 4
+  !!    |     |
+  !!    *--*--*
+  !!   1   2   3
+  !=============================================================================
+
+  !! Test 1: Uniform stretching in X-direction of a Q8
+  print 1,'Check uniform stretching in X-direction for Q8'
+
+  EV = 0.0_dp
+  do i = 3, 5
+     V(1,i) = 0.01_dp
+  end do
+  V(1,2) = 0.005_dp
+  V(1,6) = 0.005_dp
+  call elStress (2,ieltQ8,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     write(message,"(' strain in point #',I2)") i
+     @assertEqual(0.01_dp,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !! Test 2: Uniform stretching in Y-direction of a Q8
+  print 1,'Check uniform stretching in Y-direction for Q8'
+
+  EV = 0.0_dp
+  do i = 5, 7
+     V(2,i) = 0.01_dp
+  end do
+  V(2,4) = 0.005_dp
+  V(2,8) = 0.005_dp
+  call elStress (2,ieltQ8,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     write(message,"(' strain in point #',I2)") i
+     @assertEqual(0.0_dp ,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.01_dp,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !! Test 3: Constant shear for Q8
+  print 1,'Check constant membrane shear for Q8'
+
+  EV = 0.0_dp
+  do i = 5, 7
+     V(1,i) = 0.01_dp
+  end do
+  V(1,4) = 0.005_dp
+  V(1,8) = 0.005_dp
+  do i = 3, 5
+     V(2,i) = 0.01_dp
+  end do
+  V(2,2) = 0.005_dp
+  V(2,6) = 0.005_dp
+  call elStress (2,ieltQ8,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     write(message,"(' strain in point #',I2)") i
+     @assertEqual(0.0_dp ,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.01_dp,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !! Test 4: Linear stretching in X-direction of a Q8
+  print 1,'Check linear stretching in X-direction for Q8'
+
+  EV = 0.0_dp
+  do i = 3, 5
+     V(1,i) = 0.04_dp
+  end do
+  V(1,2) = 0.01_dp
+  V(1,6) = 0.01_dp
+  call elStress (2,ieltQ8,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     j = mod(i-1,8) + 1
+     write(message,"(' strain in point #',I2)") i
+     if (j >= 3 .and. j <= 5) then
+        epsilon = 0.08_dp
+     else if (j == 2 .or. j == 6) then
+        epsilon = 0.04_dp
+     else
+        epsilon = 0.0_dp
+     end if
+     @assertEqual(epsilon,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !=============================================================================
+  !! Nodal ordering for the 6-noded shell:
+  !!
+  !!    * 3
+  !!    |\
+  !!    | \
+  !!  6 *  * 5
+  !!    |   \
+  !!    |    \
+  !!    *--*--*
+  !!   1   4   2
+  !=============================================================================
+
+  !! Test 5: Uniform stretching in X-direction of a T6
+  print 1,'Check uniform stretching in X-direction for T6'
+
+  EV = 0.0_dp
+  V(1,2) = 0.01_dp
+  V(1,4) = 0.005_dp
+  V(1,5) = 0.005_dp
+  call elStress (1,ieltT6,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     write(message,"(' strain in point #',I2)") i
+     @assertEqual(0.01_dp,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !! Test 6: Uniform stretching in Y-direction of a T6
+  print 1,'Check uniform stretching in Y-direction for T6'
+
+  EV = 0.0_dp
+  V(2,3) = 0.01_dp
+  V(2,5) = 0.005_dp
+  V(2,6) = 0.005_dp
+  call elStress (1,ieltT6,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     write(message,"(' strain in point #',I2)") i
+     @assertEqual(0.0_dp ,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.01_dp,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !! Test 7: Constant shear of a T6
+  print 1,'Check constant membrane shear for T6'
+
+  EV = 0.0_dp
+  V(1,3) = 0.01_dp
+  V(1,5) = 0.005_dp
+  V(1,6) = 0.005_dp
+  V(2,2) = 0.01_dp
+  V(2,4) = 0.005_dp
+  V(2,5) = 0.005_dp
+  call elStress (1,ieltT6,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     write(message,"(' strain in point #',I2)") i
+     @assertEqual(0.0_dp ,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.01_dp,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+  !! Test 8: Linear stretching in Y-direction of a T6
+  print 1,'Check linear stretching in Y-direction for T6'
+
+  EV = 0.0_dp
+  V(2,3) = 0.04_dp
+  V(2,5) = 0.01_dp
+  V(2,6) = 0.01_dp
+  call elStress (1,ieltT6,EV,SR,SS,Stress,Strain, &
+       &         nenod=nenod,nstrp=nstrp,ipsw=5,lpu=6,ierr=ierr)
+  @assertEqual(0,ierr)
+
+  ipst = 0
+  do i = 1, nstrp
+     j = mod(i-1,6) + 1
+     write(message,"(' strain in point #',I2)") i
+     if (j == 3) then
+        epsilon = 0.08_dp
+     else if (j >= 5) then
+        epsilon = 0.04_dp
+     else
+        epsilon = 0.0_dp
+     end if
+     @assertEqual(0.0_dp ,Strain(ipst+1),1.0e-15_dp,'eps_xx'//message)
+     @assertEqual(epsilon,Strain(ipst+2),1.0e-15_dp,'eps_yy'//message)
+     @assertEqual(0.0_dp ,Strain(ipst+4),1.0e-15_dp,'eps_xy'//message)
+     ipst = ipst + 6
+  end do
+
+1 format(//,'>>> ',A,' <<<')
+end subroutine testShell

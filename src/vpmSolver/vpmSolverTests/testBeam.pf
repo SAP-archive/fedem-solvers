@@ -1,0 +1,101 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @brief Unit tests for the beam element.
+!>
+!> @author Knut Morten Okstad, SAP SE
+!>
+!> @date 18 Feb 2019
+
+@test
+subroutine testBeam
+#if FT_PFUNIT > 3
+  use funit, only : assertEqual, sourceLocation, anyExceptions
+#else
+  use pfunit_mod, only : assertEqual, sourceLocation, anyExceptions
+#endif
+  use EnvironmentTypeModule, only : EnvironmentType, nullifyEnvironment
+  use TriadTypeModule      , only : TriadType, nullifyTriad, dp
+  use SupElTypeModule      , only : SupElType, nullifySupEl, writeObject
+  use FiniteElementModule  , only : BeamPropertyType, calcElementMatrices
+  use manipMatrixModule    , only : writeObject, unify
+  use reportErrorModule    , only : setErrorFile
+
+  implicit none
+
+  type(TriadType), target :: triads(2)
+  type(SupElType)         :: beam
+  type(BeamPropertyType)  :: prop
+  type(EnvironmentType)   :: env
+
+  integer  :: i, ierr
+  real(dp) :: geometry(4), material(3)
+
+  geometry = (/ 0.07068583471_dp, 0.001811324514_dp, 0.001811324514_dp, &
+	&       0.003622649029_dp /)
+  material = (/ 7850.0_dp, 2.1e10_dp, 8.139534884e9_dp /)
+
+  write(6,"(//'Testing beam element routines')")
+  call setErrorFile (6)
+
+  !! Create a single beam element model
+  call nullifySupEl (beam)
+  beam%id%userId = 1
+  beam%nExtNods = 2
+  beam%rigidFlag = -1
+  allocate(beam%triads(2),beam%TrUndeformed(3,4,2),STAT=ierr)
+  @assertEqual(0,ierr)
+  beam%triads(1)%firstDOF = 1
+  beam%triads(2)%firstDOF = 7
+  beam%nTotDofs = 12
+  call unify (beam%supTr)
+  call unify (beam%supTrPrev)
+  do i = 1, 2
+     call nullifyTriad (triads(i))
+     triads(i)%id%userid = i
+     beam%triads(i)%p => triads(i)
+     call unify (triads(i)%ur)
+     beam%TrUnDeformed(:,:,i) = triads(i)%ur
+  end do
+  !! Setting the beam length to 1.0
+  triads(2)%ur(1,4)        = 1.0_dp
+  beam%TrUndeformed(1,4,2) = 1.0_dp
+
+  !! Define some beam properties
+  prop%rho     = material(1)   ! Mass density
+  prop%EP(1:2) = material(2:3) ! Stiffness moduli (E,G)
+  prop%EP(3:6) = geometry(1:4) ! Cross section parameters (A,Iy,Iz,It)
+  prop%Ix      = geometry(2) + geometry(3) ! Polar area moment (Ip)
+  prop%CA      = 2.0_dp        ! Shear reduction factors (kappa)
+  prop%XS      = 0.0_dp        ! Shear centre
+  prop%Zvec    = 0.0_dp        ! Local Z-axis
+  prop%Zvec(3) = 1.0_dp        ! Local Z-axis
+  prop%Morison = 0.0_dp        ! Hydrodynamic quantities
+  prop%rhoInt  = 0.0_dp        ! Density of internal fluid
+  prop%Dint    = 0.0_dp        ! Diameter of internal fluid body
+  call nullifyEnvironment (env)
+
+  !! Calculate element mass and stiffness matrix
+  allocate(beam%Mmat(12,12),beam%KmMat(12,12),beam%fg(12,3),STAT=ierr)
+  @assertEqual(0,ierr)
+  beam%Mmat  = 0.0_dp
+  beam%KmMat = 0.0_dp
+  beam%fg    = 0.0_dp
+  call writeObject (beam,6,5)
+  call calcElementMatrices (beam,prop,env,ierr)
+  @assertEqual(0,ierr)
+
+  call writeObject (beam%KmMat,6,'beam stiffness matrix')
+  call writeObject (beam%Mmat ,6,'beam mass matrix')
+  call writeObject (beam%fg   ,6,'beam gravity vectors')
+
+  !TODO: Add some validity checks on the calculated matrices here
+
+  deallocate(beam%Mmat,beam%KmMat,beam%fg,beam%EI)
+  deallocate(beam%triads,beam%TrUndeformed)
+
+end subroutine testBeam

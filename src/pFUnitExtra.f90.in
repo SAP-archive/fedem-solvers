@@ -1,0 +1,36 @@
+!! SPDX-FileCopyrightText: 2023 SAP SE
+!!
+!! SPDX-License-Identifier: Apache-2.0
+!!
+!! This file is part of FEDEM - https://openfedem.org
+!!==============================================================================
+
+!> @file pFUnitExtra.f90
+!> @brief This file contains additional source code for the pFUnit driver.
+!> @details This is an extension of the Fortran unit test system (pFUnit)
+!> to enable passing the current source directory to the unit test
+!> executables when invoked via ctest.
+!>
+!> @author Knut Morten Okstad / SAP SE
+!> @date 8 Oct 2020
+
+!> @brief Module with additional source code for the pFUnit driver.
+!> @details This module contains a subroutine for setting the directory
+!> of the source code for the unit tests, which then can be used when
+!> loading specified data files required by the tests. This way the unit
+!> test executables can be invoked from an arbitrary working directory.
+!>
+!> The pf-files need to be compiled with -DPFUNIT_EXTRA_USE=fUnitExtra
+!> and -DPFUNIT_EXTRA_INITIALIZE=get_srcdir to activate this code.
+
+module fUnitExtra
+  character(len=:), allocatable, save :: srcdir !< Unit test source directory
+contains
+  !> @brief Initializes the source directory variable.
+  subroutine get_srcdir ()
+    integer :: nchar
+    nchar = len('@CMAKE_CURRENT_SOURCE_DIR@')
+    allocate(character(len=nchar) :: srcdir)
+    srcdir = '@CMAKE_CURRENT_SOURCE_DIR@'
+  end subroutine get_srcdir
+end module fUnitExtra
