@@ -1,0 +1,9 @@
+[submodule "fedem-foundation"]
+	path = fedem-foundation
+	url = ../fedem-foundation.git
+[submodule "SAM"]
+	path = SAM
+	url = ../sam-lib.git
+[submodule "solverTests"]
+	path = solverTests
+	url = ../fedem-solver-tests.git
