@@ -24,11 +24,10 @@ Disclaimer: The code in this project may include calls to APIs ("API Calls") of
  you any rights to use or access any SAP External Product, or provide any third
  parties the right to use of access any SAP External Product, through API Calls.
 
-Files: PythonAPI/* src/*.* src/Femlib/* src/FMU/*.* src/src/OP2converter/* src/src/SolutionMapper/* src/vpm*/*
+Files: PythonAPI/* cfg/* src/*.* src/Femlib/* src/FMU/*.* src/src/OP2converter/* src/src/SolutionMapper/* src/vpm*/*
 Copyright: 2023 SAP SE or an SAP affiliate company and fedem-solvers contributors
 License: Apache-2.0
 
 Files: src/FMU/FMI2/*
-Copyright: 2008-2011 MODELISAR consortium
-Copyright: 2012-2020 Modelica Association Project "FMI"
+Copyright: 2008-2011 MODELISAR consortium, 2012-2020 Modelica Association Project "FMI"
 License: BSD-2-Clause
