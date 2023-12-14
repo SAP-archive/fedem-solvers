@@ -17,18 +17,22 @@
 ## About this project
 
 This project contains the Fortran source code of the FEDEM solver modules.
-In addition, the [PythonAPI](PythonAPI) folder contains the source code of the
-Python package `fedempy`, which enables the use of python to control the
-execution of the FEDEM FE Part Reducer and Dynamics Solver
+In addition, the [PythonAPI](PythonAPI) folder contains the source code of
+the Python package `fedempy`, which enables the use of python to control
+execution of the FE Part Reducer and Dynamics Solver,
+as well as creating new models and/or editing existing ones by scripting.
 
 This project also uses elements from the
 [fedem-foundation](https://github.com/SAP/fedem-foundation) project,
 which is consumed as a submodule by this repository.
 It also uses the [SAM library](https://github.com/SAP/sam-lib).
 
-The FEDEM GUI application, which also can be used to control the solvers and
-post-process their results, is maintained in a parallel project
+The FEDEM GUI application, which also can be used to control the solvers
+and to post-process their results, is maintained in a parallel project
 [fedem-gui](https://github.com/SAP/fedem-gui).
+
+Refer to our web page [openfedem.org](https://openfedem.org/)
+for overall information on the FEDEM project.
 
 ## Requirements and Setup
 
