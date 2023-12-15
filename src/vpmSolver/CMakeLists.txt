@@ -282,4 +282,7 @@ if ( BUILD_SOLVER_AS_DLL )
 else ( BUILD_SOLVER_AS_DLL )
   target_link_libraries ( ${APPL} ${LIB_ID} )
 endif ( BUILD_SOLVER_AS_DLL )
-do_install ( "${TARGET_LIST}" ${CMAKE_INSTALL_PREFIX} )
+
+install ( TARGETS ${TARGET_LIST}
+          RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+          LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" )

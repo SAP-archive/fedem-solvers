@@ -29,6 +29,12 @@ foreach ( FOLDER ${LIB_ID_LIST} )
   add_subdirectory ( ${FOLDER} )
 endforeach ( FOLDER ${LIB_ID_LIST} )
 
+if ( FTLINALG_LIBRARY_ID MATCHES GSF )
+  message ( STATUS "INFORMATION : Building ${LIB_ID} with GSF support" )
+  string ( APPEND CMAKE_CXX_FLAGS " -DFT_HAS_GSF" )
+  string ( APPEND CMAKE_Fortran_FLAGS " -DFT_HAS_GSF" )
+endif ( FTLINALG_LIBRARY_ID MATCHES GSF )
+
 
 ## Files with header and source with same name
 set ( COMPONENT_FILE_LIST )
@@ -75,22 +81,10 @@ foreach ( FILE ${F90_FILE_LIST} )
 endforeach ( FILE ${F90_FILE_LIST} )
 
 
-if ( FTLINALG_LIBRARY_ID MATCHES GSF )
-  message ( STATUS "INFORMATION : Building ${LIB_ID} with GSF support" )
-  string ( APPEND CMAKE_CXX_FLAGS " -DFT_HAS_GSF" )
-  string ( APPEND CMAKE_Fortran_FLAGS " -DFT_HAS_GSF" )
-endif ( FTLINALG_LIBRARY_ID MATCHES GSF )
-
-set ( FT_COMMON_LIBRARIES vpmUtilities_F90 vpmUtilities
-                          FemLib FFlLib_F FFlLib
-                          FFaLib_F FFaCmdLineArg FFaAlgebra
-    )
-set ( FT_KERNEL_LIBRARIES vpmLinAlg vpmCommon_F90 )
-
-set ( DEPENDENCY_LIST ${FT_KERNEL_LIBRARIES} ${FT_COMMON_LIBRARIES} )
-
-
 # Build and install
+
+set ( DEPENDENCY_LIST vpmLinAlg vpmCommon_F90 vpmUtilities_F90 FemLib
+                      FFlLib_F FFaLib_F FFaCmdLineArg FFaAlgebra )
 
 add_library ( ${LIB_ID}_F ${F90_SOURCE_FILES} )
 target_link_libraries ( ${LIB_ID}_F ${DEPENDENCY_LIST} )
@@ -118,4 +112,7 @@ if ( BUILD_FMXWRITER_DLL )
   list ( APPEND TARGET_LIST fmxWriter )
   add_dependencies ( all_solvers fmxWriter )
 endif ( BUILD_FMXWRITER_DLL )
-do_install ( "${TARGET_LIST}" ${CMAKE_INSTALL_PREFIX} )
+
+install ( TARGETS ${TARGET_LIST}
+          RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+          LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" )

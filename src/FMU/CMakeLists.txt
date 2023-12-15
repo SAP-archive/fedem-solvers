@@ -21,4 +21,7 @@ endif ( FTENV_WARNINGS AND LINUX AND NOT USE_INTEL_FORTRAN )
 include_directories ( "${CMAKE_CURRENT_SOURCE_DIR}/FMI2/headers" )
 add_library ( ${LIB_ID} SHARED fmu_template.C )
 add_dependencies ( all_solvers ${LIB_ID} )
-do_install ( ${LIB_ID} "${CMAKE_INSTALL_PREFIX}" )
+
+install ( TARGETS ${LIB_ID}
+          RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+          LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" )

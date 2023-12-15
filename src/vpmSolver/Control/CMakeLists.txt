@@ -29,7 +29,9 @@ if ( BUILD_CONTROL_AS_DLL )
   string ( APPEND CMAKE_Fortran_FLAGS " -DFT_SHARED" )
   add_library ( ${LIB_ID} SHARED ${F77_SOURCE_FILES} ${F90_SOURCE_FILES} )
   target_link_libraries ( ${LIB_ID} LINK_PRIVATE ${LAPACK_LIBRARIES} )
-  do_install ( ${LIB_ID} ${CMAKE_INSTALL_PREFIX} )
+  install ( TARGETS ${LIB_ID}
+            RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+            LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" )
 else ( BUILD_CONTROL_AS_DLL )
   add_library ( ${LIB_ID} STATIC ${F77_SOURCE_FILES} ${F90_SOURCE_FILES} )
   target_link_libraries ( ${LIB_ID} vpmUtilities_F90 ${LAPACK_LIBRARIES} )

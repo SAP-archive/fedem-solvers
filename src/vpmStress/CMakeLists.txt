@@ -68,18 +68,11 @@ foreach ( FILE ${F90_FILE_LIST} )
 endforeach ( FILE ${F90_FILE_LIST} )
 
 
-set ( FT_COMMON_LIBRARIES FemLib vpmUtilities_F90
-                          FFlLib_F FFrLib_F FFaLib_F
-    )
-set ( FT_KERNEL_LIBRARIES vpmCommon_F90
-                          FiDeviceFunctions_F90
-                          FFpLib_F
-    )
-
-set ( DEPENDENCY_LIST ${FT_KERNEL_LIBRARIES} ${FT_COMMON_LIBRARIES} )
-
-
 # Build and install
+
+set ( DEPENDENCY_LIST vpmCommon_F90 vpmUtilities_F90
+                      FemLib FiDeviceFunctions_F90
+                      FFpLib_F FFlLib_F FFrLib_F FFaLib_F )
 
 add_library ( ${LIB_ID}_F ${F90_SOURCE_FILES} )
 target_link_libraries ( ${LIB_ID}_F ${DEPENDENCY_LIST} )
@@ -106,4 +99,7 @@ endforeach ( APPL ${APPLICATION_SOURCE_FILE_LIST} )
 if ( BUILD_SOLVER_AS_DLL )
   list ( APPEND TARGET_LIST ${DLL_ID} )
 endif ( BUILD_SOLVER_AS_DLL )
-do_install ( "${TARGET_LIST}" ${CMAKE_INSTALL_PREFIX} )
+
+install ( TARGETS ${TARGET_LIST}
+          RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+          LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" )
