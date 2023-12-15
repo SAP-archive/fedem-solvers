@@ -7,6 +7,7 @@
 # Build setup
 
 set ( LIB_ID ResponsePos )
+set ( APP_ID response_pos )
 set ( UNIT_ID ${DOMAIN_ID}_${PACKAGE_ID}_${LIB_ID} )
 
 message ( STATUS "INFORMATION : Processing unit ${UNIT_ID}" )
@@ -53,11 +54,17 @@ foreach ( FILE ${F90_FILE_LIST} )
 endforeach ( FILE ${F90_FILE_LIST} )
 
 
+# Build and install
+
 add_library ( ${LIB_ID} ${F90_SOURCE_FILES} )
+add_executable ( ${APP_ID} main.C )
 target_link_libraries ( ${LIB_ID} vpmCommon_F90 FFaFunctionLib_F90 )
+target_link_libraries ( ${APP_ID} ${LIB_ID} )
 
+add_custom_command ( OUTPUT response_pos.frs
+                     COMMAND ${APP_ID} DEPENDS ${APP_ID} )
+add_custom_target ( response_pos_frs ALL
+                    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/response_pos.frs )
 
-set ( APPL response_pos )
-add_executable ( ${APPL} main.C )
-target_link_libraries ( ${APPL} ${LIB_ID} )
-add_dependencies ( all_solvers ${APPL} )
+install ( FILES ${CMAKE_CURRENT_BINARY_DIR}/response_pos.frs
+          DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/resources" )

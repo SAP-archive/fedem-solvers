@@ -46,15 +46,17 @@ respectively, before executing the `cmake` commands shown below.
   Visual Studio 2019 and the Intel&reg; Fortran Compilers.
 
       @echo off
-      title Open FEDEM solvers configuration for Windows
+      title FEDEM solvers configuration
       call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 vs2019
+      set /p VERSION=<%USERPROFILE%\Fedem-src\fedem-solvers\cfg\VERSION
       "%VS2019INSTALLDIR%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" ^
       -G "Visual Studio 16 2019" ^
+      -S %USERPROFILE%\Fedem-src\fedem-solvers ^
+      -B %USERPROFILE%\Fedem-build\solvers ^
+      -DCMAKE_INSTALL_PREFIX=%USERPROFILE%\Fedem-install\%VERSION% ^
       -DBUILD_SOLVER_AS_DLL=ON -DBUILD_CONTROL_AS_DLL=ON ^
       -DUSE_CONCURRENT_RECOVERY=ON -DUSE_SP_RECOVERY=ON ^
-      -DFT_LARGE_MODELS=ON -DFT_TOLERANCE=1.0e-10 ^
-      -S %USERPROFILE%\Fedem-src\fedem-solvers ^
-      -B %USERPROFILE%\Fedem-build\solvers
+      -DFT_LARGE_MODELS=ON -DFT_TOLERANCE=1.0e-10
       pause
 
 - Then (still on Windows), open the generated solution file
@@ -62,3 +64,9 @@ respectively, before executing the `cmake` commands shown below.
   in Visual Studio and build the `all_solvers` target for `Release`
   configuration to compile all solver modules. Build the `check` target
   if you also want to execute the tests after building the solvers.
+
+  Build the `INSTALL` target to install the resulting binaries
+  (`.exe` file and dependent `.dll` files) in the folder
+  `${CMAKE_INSTALL_PREFIX}\bin` where `CMAKE_INSTALL_PREFIX` is specified
+  on the `cmake` command (see above). The binaries will then be installed in
+  a subfolder named after the current version stored in the `cfg\VERSION` file.

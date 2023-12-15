@@ -84,10 +84,9 @@ if ( BUILD_TEST_REPORTS )
     list ( APPEND CTEST_OPTIONS -I ${PROF_RANGE} )
   endif ( PROF_RANGE )
   add_custom_target ( code_profile
-    COMMAND ${CMAKE_CTEST_COMMAND} ${CTEST_OPTIONS}
-    COMMENT "Generating profiling with callgrind"
-    VERBATIM
-  )
+                      COMMAND ${CMAKE_CTEST_COMMAND} ${CTEST_OPTIONS}
+                      COMMENT "Generating profiling with callgrind"
+                      VERBATIM )
 endif ( BUILD_TEST_REPORTS )
 
 
@@ -138,6 +137,9 @@ if ( DOXYGEN )
   add_dependencies ( doc solver_doc )
 endif ( DOXYGEN )
 
+
+# Process the sub-folders
+
 set ( USE_FORTRAN true )
 set ( SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/src" )
 
@@ -145,3 +147,22 @@ add_subdirectory ( fedem-foundation/src "${CMAKE_CURRENT_BINARY_DIR}/fedem-found
 add_subdirectory ( SAM/src "${CMAKE_CURRENT_BINARY_DIR}/src/SAM" )
 add_subdirectory ( src )
 add_subdirectory ( PythonAPI )
+
+
+# Install the Fortran redistributables
+
+if ( WIN AND DEFINED ENV{IFORT_COMPILER23} )
+  file ( TO_CMAKE_PATH $ENV{IFORT_COMPILER23}redist/intel64_win/compiler IFORT_PATH )
+  file ( GLOB FTN_REDIST ${IFORT_PATH}/*md.dll )
+  if ( FTENV_VERBOSE )
+    message ( STATUS "Installing Fortran redistributables from ${IFORT_PATH} to ${CMAKE_INSTALL_PREFIX}" )
+  endif ( FTENV_VERBOSE )
+  install ( FILES ${FTN_REDIST} DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" )
+endif ( WIN AND DEFINED ENV{IFORT_COMPILER23} )
+if ( WIN AND DEFINED ENV{MKLROOT} )
+  file ( TO_CMAKE_PATH $ENV{MKLROOT}/redist/intel64 MKL_PATH )
+  if ( FTENV_VERBOSE )
+    message ( STATUS "Installing MKL redistributables from ${MKL_PATH} to ${CMAKE_INSTALL_PREFIX}" )
+  endif ( FTENV_VERBOSE )
+  install ( FILES ${MKL_PATH}/mkl_intel_thread.2.dll DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" )
+endif ( WIN AND DEFINED ENV{MKLROOT} )
