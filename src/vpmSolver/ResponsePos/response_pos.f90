@@ -163,7 +163,6 @@ subroutine response_pos (ierr)
 
   do i = 1, size(ctrl%vregId)
      call nullifyId(ctrl%vregId(i))
-     ctrl%vregId(i)%baseId = i
   end do
   ctrl%saveVar = .true.
 
