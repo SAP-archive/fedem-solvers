@@ -105,26 +105,40 @@ contains
     type(IdType)    , intent(in) :: id
     integer         , intent(in) :: lpu
     logical,optional, intent(in) :: doAdvance
-    character(len=10) :: baseId, userId
+    character(len=10) :: txtId
+    character(len=3)  :: adv
 
-    write(baseId,"(i10)") id%baseId
-    write(userId,"(i10)") id%userId
-    if (present(doAdvance)) then
-       if (doAdvance) then
-          write(lpu,600) trim(type), &
-               &         trim(adjustl(baseId)), &
-               &         trim(adjustl(userId)), &
-               &         trim(id%descr)
-          return
-       end if
+    if (.not.present(doAdvance)) then
+       adv = 'NO'
+    else if (doAdvance) then
+       adv = 'YES'
+    else
+       adv = 'NO'
     end if
 
-    write(lpu,600,advance='NO') trim(type), &
-         &                      trim(adjustl(baseId)), &
-         &                      trim(adjustl(userId)), &
-         &                      trim(id%descr)
+    write(lpu,600,advance='NO') trim(type)
+    if (id%baseId > 0) then
+       write(txtId,"(i10)") id%baseId
+       write(lpu,"(a,';')",advance='NO') trim(adjustl(txtId))
+    else
+       write(lpu,"(';')",advance='NO')
+    end if
 
-600 format('{"',a,'";',a,';',a,';"',a,'";')
+    if (id%userId > 0) then
+       write(txtId,"(i10)") id%userId
+       write(lpu,"(a,';')",advance='NO') trim(adjustl(txtId))
+    else
+       write(lpu,"(';')",advance='NO')
+    end if
+
+    if (id%descr == '') then
+       write(lpu,"(';')",advance=adv)
+    else
+       write(lpu,601) trim(id%descr)
+    end if
+
+600 format('{"',a,'";')
+601 format('"',a,'";')
 
   end subroutine WriteIdHeader
 
