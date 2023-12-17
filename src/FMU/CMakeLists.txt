@@ -22,6 +22,7 @@ include_directories ( "${CMAKE_CURRENT_SOURCE_DIR}/FMI2/headers" )
 add_library ( ${LIB_ID} SHARED fmu_template.C )
 add_dependencies ( all_solvers ${LIB_ID} )
 
+set ( CLOUD_DIR "${CMAKE_INSTALL_PREFIX}/bin/Templates/cloudsim" )
 install ( TARGETS ${LIB_ID}
-          RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-          LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" )
+          RUNTIME DESTINATION "${CLOUD_DIR}"
+          LIBRARY DESTINATION "${CLOUD_DIR}" )
