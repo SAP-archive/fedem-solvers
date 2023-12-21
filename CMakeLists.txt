@@ -164,5 +164,7 @@ if ( WIN AND DEFINED ENV{MKLROOT} )
   if ( FTENV_VERBOSE )
     message ( STATUS "Installing MKL redistributables from ${MKL_PATH} to ${CMAKE_INSTALL_PREFIX}" )
   endif ( FTENV_VERBOSE )
-  install ( FILES ${MKL_PATH}/mkl_intel_thread.2.dll DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" )
+  set ( MKL_REDIST ${MKL_PATH}/mkl_core.2.dll ${MKL_PATH}/mkl_avx2.2.dll
+                   ${MKL_PATH}/mkl_vml_avx2.2.dll ${MKL_PATH}/mkl_intel_thread.2.dll )
+  install ( FILES ${MKL_REDIST} DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" )
 endif ( WIN AND DEFINED ENV{MKLROOT} )
