@@ -6,8 +6,8 @@
 
 # Configuration file for the Sphinx documentation builder.
 #
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
+# This file only contains a selection of the most common options.
+# For a full list, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
@@ -18,24 +18,24 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath("../../src/fedempy/"))
+sys.path.insert(0, os.path.abspath("../../src"))
+sys.path.insert(1, os.path.abspath("../../src/fedempy"))
 
 # -- Project information -----------------------------------------------------
 
-project = 'fedempy'
-copyright = 'SAP'
-author = ''
+project = "fedempy"
+copyright = "2023, SAP SE"
+author = "Knut Morten Okstad"
 
 # The short X.Y version
-version = ""
+version = "3.0"
 # The full version, including alpha/beta/rc tags
-release = ""
+release = "3.0.2"
 
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
+# extensions coming with Sphinx (named "sphinx.ext.*") or your custom ones.
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
@@ -63,7 +63,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

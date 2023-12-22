@@ -11,7 +11,7 @@ the input file:
 
 | *target_file* - specifies the name of the fmm-file to be created
 | *source_file* - specifies an fmm-file to be used as template for the model.
-| *file_exists* - specified what to do if the `target_file`already exists:
+| *file_exists* - specified what to do if the `target_file` already exists:
 |                 USE_IT - opens this file for editing existing model
 |                 OVERWRITE! - ignores and overwrites any existing file
 |                 STOP! - aborts the execution
@@ -40,9 +40,8 @@ This module can also be launched directly using the syntax
 
 | ``python -m fedempy.yaml_parser -f mymodel.yaml``
 
-It will then invoke the method :meth:`yaml_parser.ModelYAML.main`
+It will then invoke the method :meth:`yaml_parser.main`
 on the specified input file (`mymodel.yaml`).
-
 """
 
 from argparse import ArgumentParser
