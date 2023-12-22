@@ -1,4 +1,9 @@
 @ECHO OFF
+REM SPDX-FileCopyrightText: 2023 SAP SE
+REM
+REM SPDX-License-Identifier: Apache-2.0
+REM
+REM This file is part of FEDEM - https://openfedem.org
 
 pushd %~dp0
 
