@@ -7,28 +7,32 @@
 """
 Setuptools package definition
 """
+
 from setuptools import find_packages, setup
 
-# build pipeline updates version.txt with build timestamp
-VERSION = open("version.txt").read().rstrip()
-# "A Better Pip Workflow": https://www.kennethreitz.org/essays/a-better-pip-workflow
-REQUIRES = list(open("requirements-to-freeze.txt")) + list(
-    open("requirements-internal.txt")
-)
-DEV_REQUIRES = list(open("requirements-dev.txt"))
+# The build pipeline will update the version.txt file
+with open("version.txt") as fd:
+    VERSION = fd.read().rstrip()
+# "A Better Pip Workflow": https://kennethreitz.org/essays/2016/02/25/a-better-pip-workflow
+with open("requirements-to-freeze.txt") as fd:
+    REQUIRES = list(fd)
+with open("requirements-internal.txt") as fd:
+    REQUIRES.extend(list(fd))
+with open("requirements-dev.txt") as fd:
+    DEV_REQUIRES = list(fd)
 
 
 setup(
     name="fedempy",
     version=VERSION,
-    description="Python wrapper for the FEDEM solvers",
+    description="Python wrapper for the FEDEM modeler and solvers",
     author="Knut Morten Okstad, SAP SE",
     author_email="Knut.Morten.Okstad@sap.com",
-    url="www.sap.com",
+    url="openfedem.org",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
-    license="SAP License",
+    license="Apache 2.0",
     install_requires=REQUIRES,
     extras_require={"dev": DEV_REQUIRES},
     classifiers=["Intended Audience :: Internal", "Programming Language :: Python"],
