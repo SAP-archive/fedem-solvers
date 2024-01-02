@@ -35,12 +35,12 @@ C
 C FFTPACK 5.1 auxiliary routine
 C
       INC2 = INC+INC
-      NF = FNF
+      NF = INT(FNF)
       NA = 0
       L1 = 1
       IW = 1
       DO 125 K1=1,NF
-         IP = FAC(K1)
+         IP = INT(FAC(K1))
          L2 = IP*L1
          IDO = N/L2
          LID = L1*IDO

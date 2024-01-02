@@ -32,19 +32,20 @@ C
       REAL FAC(*)
       INTEGER NTRYH(4)
       DATA NTRYH(1),NTRYH(2),NTRYH(3),NTRYH(4)/4,2,3,5/
-C
+      NTRY = 0
       NL = N
       NF = 0
       J = 0
   101 J = J+1
-      IF (J-4) 102,102,103
-  102 NTRY = NTRYH(J)
-      GO TO 104
-  103 NTRY = NTRY+2
+      IF (J .LE. 4) THEN
+         NTRY = NTRYH(J)
+      ELSE
+         NTRY = NTRY + 2
+      END IF
   104 NQ = NL/NTRY
       NR = NL-NTRY*NQ
-      IF (NR) 101,105,101
-  105 NF = NF+1
+      IF (NR .NE. 0) GO TO 101
+      NF = NF+1
       FAC(NF) = NTRY
       NL = NQ
       IF (NL .NE. 1) GO TO 104
