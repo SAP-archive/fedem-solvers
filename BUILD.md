@@ -39,7 +39,8 @@ respectively, before executing the `cmake` commands shown below.
       mkdir Release; cd Release
       cmake .. -DCMAKE_BUILD_TYPE=Release \
                -DBUILD_SOLVER_AS_DLL=ON -DBUILD_CONTROL_AS_DLL=ON -DBUILD_TEST_REPORTS=ON \
-               -DUSE_CONCURRENT_RECOVERY=ON -DUSE_SP_RECOVERY=ON -DFT_LARGE_MODELS=ON -DFT_TOLERANCE=1.0e-12
+               -DUSE_CONCURRENT_RECOVERY=ON -DUSE_SP_RECOVERY=ON -DUSE_FFTPACK=ON \
+               -DFT_LARGE_MODELS=ON -DFT_TOLERANCE=1.0e-12
       make check
 
 - On Windows, use the following bat script to configure the build with
@@ -55,7 +56,7 @@ respectively, before executing the `cmake` commands shown below.
       -B %USERPROFILE%\Fedem-build\solvers ^
       -DCMAKE_INSTALL_PREFIX=%USERPROFILE%\Fedem-install\%VERSION% ^
       -DBUILD_SOLVER_AS_DLL=ON -DBUILD_CONTROL_AS_DLL=ON ^
-      -DUSE_CONCURRENT_RECOVERY=ON -DUSE_SP_RECOVERY=ON ^
+      -DUSE_CONCURRENT_RECOVERY=ON -DUSE_SP_RECOVERY=ON -DUSE_FFT_PACK=ON ^
       -DFT_LARGE_MODELS=ON -DFT_TOLERANCE=1.0e-10
       pause
 

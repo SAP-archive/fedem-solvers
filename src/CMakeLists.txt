@@ -16,7 +16,11 @@ set ( UNIT_ID ${DOMAIN_ID}_${PACKAGE_ID} )
 message ( STATUS "INFORMATION : Processing unit ${UNIT_ID}" )
 
 option ( BUILD_SOLVER_AS_DLL "Build solvers as shared libraries" false )
+option ( USE_FFTPACK "Build dynamics solver with FFTPack usage" false )
 
+if ( USE_FFTPACK )
+  list ( APPEND LIB_ID_LIST FFTPack )
+endif ( USE_FFTPACK )
 
 get_filename_component ( PARENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY )
 include_directories ( "${PROJECT_BINARY_DIR}/f90_modules"
