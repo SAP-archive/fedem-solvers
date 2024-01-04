@@ -952,19 +952,20 @@ class FedemModeler(FedemModel):
 
             1. **Polyline**
 
-              | `xy`:sup:`*`: List of XY-pairs giving a piece-wise linear curve
+              | `xy`:sup:`*`: List of `XY`-pairs giving a
+                              piece-wise linear curve
               | `extrapol_type`: String, either "NONE" (default),
                                  "FLAT" or "LINEAR"
 
             2. **Polyline-from-file**
 
-              | `filename`:sup:`*`: Name of file containing XY-pairs
+              | `filename`:sup:`*`: Name of file containing `XY`-pairs
               | `ch_name`: String identifying the column to use
                            for multi-column files
               | `sc_factor`: Scaling factor, default=1.0
-              | `z_adjust`: If True, the y-values are shifted
+              | `z_adjust`: If True, the `y`-values are shifted
                             such that the first value is zero, default=False
-              | `v_shift`: Additional shift of the y-values, default=0.0
+              | `v_shift`: Additional shift of the `y`-values, default=0.0
 
             3. **Sine**
 
@@ -972,15 +973,15 @@ class FedemModeler(FedemModel):
               | `amplitude`: Scaling factor, default=1.0
               | `delay`: Phase shift, default=0.0
               | `mean_value`: Constant shift, default=0.0
-              | `end`: Default=0.0, if > 0, the function value is constant
-                       for `x` > `end`
+              | `end`: Default=0.0, if greater than zero, the function
+                       value is constant for `x` greater than `end`
 
               The Sine function therefore evaluates to::
 
                   f(x) = amplitude*sin(frequency*x-delay) + mean_value
 
               for `x`-values less than `end`, whereas ``f(x) = f(end)``
-              for `x` > `end`.
+              for `x` greater than `end`.
 
             4. **Constant**
 
@@ -1001,8 +1002,8 @@ class FedemModeler(FedemModel):
 
                   f(x) = start_val + slope*(x-start_ramp)
 
-              | for `x`-values greater than `start_ramp`,
-              | whereas ``f(x) = start_val`` for `x` :math:`\le` `start_ramp`.
+              | for `x`-values greater than `start_ramp`, whereas
+              | ``f(x) = start_val`` for `x` less than or equal to `start_ramp`.
 
             7. **Limited Ramp**
 
@@ -1015,9 +1016,9 @@ class FedemModeler(FedemModel):
 
                   f(x) = start_val + slope*(x-start_ramp)
 
-              | for `x`-values in the range [`start_ramp, end_ramp`]
-              | whereas ``f(x) = start_val`` for `x` < `start_ramp`,
-              | and ``f(x) = f(end_ramp)`` for `x` > `end_ramp`.
+              | for `x`-values in the range [`start_ramp`, `end_ramp`]
+              | whereas ``f(x) = start_val`` for `x` less than `start_ramp`,
+              | and ``f(x) = f(end_ramp)`` for `x` greater than `end_ramp`.
 
             8. **Math expression**
 
@@ -1180,8 +1181,8 @@ class FedemModeler(FedemModel):
             * `pos`: List of connection point coordinates, on the format
               `[(x1,y1,z1), (x2,y2,z2), (x3,y3,z3), (x4,y4,z4)]`.
               The last tuple is skipped if a 3-noded rosette is desired.
-            * `direction`: Tuple (x,y,z) defining the local X-axis direction
-              vector of the strain rosette
+            * `direction`: Tuple `(x,y,z)` defining the local `X`-axis
+              direction vector of the strain rosette
             * `angle` : Angle between strain gage direction and local X-axis
             * `start_at_zero` : If True, the start strains are set to zero
 

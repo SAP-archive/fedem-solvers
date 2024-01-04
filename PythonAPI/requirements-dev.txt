@@ -1,6 +1,0 @@
-black
-isort
-coverage
-hypothesis
-pylint
-pytest

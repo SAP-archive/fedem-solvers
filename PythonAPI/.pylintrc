@@ -1,0 +1,77 @@
+[MASTER]
+
+# A comma-separated list of package or module names from where C extensions may
+# be loaded. Extensions are loading into the active Python interpreter and may
+# run arbitrary code.
+extension-pkg-whitelist=orjson
+
+# Add files or directories to be excluded.
+# They should be base names, not paths.
+ignore=
+
+# Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
+# number of processors available to use.
+jobs=0
+
+
+# Control the amount of potential inferred values when inferring a single
+# object. This can help the performance when dealing with large functions or                                                                                              # complex, nested conditions.
+limit-inference-results=6
+
+
+[MESSAGES CONTROL]
+
+# Disable the message, report, category or checker with the given id(s). You
+# can either give multiple identifiers separated by comma (,) or put this
+# option multiple times (only on the command line, not in the configuration
+# file where it should appear only once). You can also use "--disable=all" to
+# disable everything first and then reenable specific checks. For example, if
+# you want to run only the similarities checker, you can use "--disable=all
+# --enable=similarities". If you want to run only the classes checker, but have
+# no Warning level messages displayed, use "--disable=all --enable=classes
+# --disable=W".
+disable=duplicate-code,
+        fixme,
+        import-error,
+        no-name-in-module,
+        too-few-public-methods,
+        logging-not-lazy
+
+
+[REPORTS]
+
+# Python expression which should return a score less than or equal to 10. You
+# have access to the variables 'error', 'warning', 'refactor', and 'convention'
+# which contain the number of messages in each category, as well as 'statement'
+# which is the total number of statements analyzed. This score is used by the
+# global evaluation report (RP0004).
+evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
+
+# Template used to display messages. This is a python new-style format string
+# used to format the message information. See doc for all details.
+msg-template={path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
+
+
+[BASIC]
+
+# Maximum number of characters on a single line.
+max-line-length=88
+const-naming-style=snake_case
+include-naming-hint=no
+# The following regexps just change the minimum variable length to 2 chars, compared to
+# the default of 3
+variable-rgx=([^\W\dA-Z][^\WA-Z]{1,}|_[^\WA-Z]*|__[^\WA-Z\d_][^\WA-Z]+__)$
+argument-rgx=([^\W\dA-Z][^\WA-Z]{1,}|_[^\WA-Z]*|__[^\WA-Z\d_][^\WA-Z]+__)$
+good-names=x,i,j,k,h
+
+
+[DESIGN]
+
+# Maximum number of arguments for function / method.
+max-args=8
+
+
+[IMPORTS]
+known-third-party=hypothesis,
+                  pandas,
+                  pytest

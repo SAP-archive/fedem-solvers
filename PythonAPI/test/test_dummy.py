@@ -8,6 +8,7 @@
 Dummy test-module to enable sonarqube unit-test run.
 Remove once actual unit-tests are in place.
 """
+
 import pytest
 
 import fedempy

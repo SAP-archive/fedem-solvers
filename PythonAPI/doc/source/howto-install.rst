@@ -1,18 +1,9 @@
 Installing fedempy
 ==================
 
-To install the latest available ``fedempy`` package on Windows,
-just give the following command in the console window::
+To install the latest released ``fedempy`` package, run the following command in a console window::
 
-    pip install fedempy
-
-For this to work, you first need to copy the file
-`pip.conf <https://github.com/SAP/fedem-solvers/blob/main/PythonAPI/pip.conf>`_
-into `%APPDATA%\\pip\\pip.ini`, where `%APPDATA%` is the environment variable connected
-to your user profile that points to where applications will have data and settings stored.
-Notice the extension of the copied file needs to be `.ini` (as opposed to `.conf` on Linux).
-If you you are running python in a virtual environment, the file can also be placed in the
-root folder of the virtual environment file system instead.
+    pip install https://github.com/SAP/fedem-solvers/releases/download/#FEDEM_TAG#/fedempy-#FEDEMPY_VERSION#.tar.gz
 
 Before using the ``fedempy`` modules, the following environment variables need to be set:
 
