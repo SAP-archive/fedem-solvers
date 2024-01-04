@@ -16,10 +16,6 @@ with open("version.txt") as fd:
 # "A Better Pip Workflow": https://kennethreitz.org/essays/2016/02/25/a-better-pip-workflow
 with open("requirements-to-freeze.txt") as fd:
     REQUIRES = list(fd)
-with open("requirements-internal.txt") as fd:
-    REQUIRES.extend(list(fd))
-with open("requirements-dev.txt") as fd:
-    DEV_REQUIRES = list(fd)
 
 
 setup(
@@ -34,7 +30,6 @@ setup(
     include_package_data=True,
     license="Apache 2.0",
     install_requires=REQUIRES,
-    extras_require={"dev": DEV_REQUIRES},
     classifiers=["Intended Audience :: Internal", "Programming Language :: Python"],
     test_suite="test",
 )
