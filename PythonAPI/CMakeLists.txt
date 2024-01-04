@@ -4,15 +4,8 @@
 #
 # This file is part of FEDEM - https://openfedem.org
 
-#
-# Setup for a domain.
-#
-set ( ACCESSCATAGORY_ID proprietary ) # Who can access this source
-set ( ACCESSCATAGORY_ID_LIST )
 set ( PACKAGE_ID PythonAPI )
-set ( PACKAGE_ID_LIST )
-
-set ( UNIT_ID "${DOMAIN_ID}_${PACKAGE_ID}" )
+set ( UNIT_ID ${DOMAIN_ID}_${PACKAGE_ID} )
 
 message ( STATUS "INFORMATION : Processing unit ${UNIT_ID}" )
 

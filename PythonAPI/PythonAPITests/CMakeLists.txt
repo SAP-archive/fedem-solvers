@@ -4,7 +4,7 @@
 #
 # This file is part of FEDEM - https://openfedem.org
 
-set ( UNIT_ID "${DOMAIN_ID}_${PACKAGE_ID}_PythonAPITests" )
+set ( UNIT_ID ${DOMAIN_ID}_${PACKAGE_ID}_PythonAPITests )
 
 message ( STATUS "INFORMATION : Processing unit ${UNIT_ID}" )
 
