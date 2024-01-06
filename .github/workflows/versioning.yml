@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2023 SAP SE
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# This file is part of FEDEM - https://openfedem.org
+
+name: Bump build number
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-build-no:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Bump build number
+        run: echo "VERSION=$(awk -F. '{$NF++;print}' OFS=. < cfg/VERSION)" >> $GITHUB_ENV
+
+      - name: Update VERSION file
+        run: |
+          echo $VERSION > cfg/VERSION
+          echo $VERSION > PythonAPI/version.txt
+
+      - name: Push updated VERSION file
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git commit -m"chore(version): build number $VERSION" cfg/VERSION PythonAPI/version.txt
+          git push origin HEAD
