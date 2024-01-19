@@ -63,17 +63,17 @@ module ControlTypeModule
      module procedure WriteControlType
   end interface
 
-  public :: ControlType, nullifyCtrl, deallocateCtrl
-  public :: ReadControlSystem, InitiateControl, hasControlElements
+  public :: CtrlPrm, ControlType, nullifyCtrl, deallocateCtrl, copyCtrl
+  public :: ReadControlSystem, InitiateControl, hasControlElements, getSensor
   public :: WriteObject, writeCtrlSysHeader, writeCtrlSysDB
 
 
 contains
 
   !!============================================================================
-  !> @brief Initializes the ControlType object.
+  !> @brief Initializes a control system object.
   !>
-  !> @param[out] ctrl Control system data
+  !> @param[out] ctrl The controltypemodule::controltype object to initialize
   !> @param[in] deallocating If .true., the pointers are nullified
   !>
   !> @callergraph
@@ -113,9 +113,10 @@ contains
 
 
   !!============================================================================
-  !> @brief Deallocates the ControlType object.
+  !> @brief Deallocates a control system object.
   !>
-  !> @param ctrl Control system data
+  !> @param ctrl The controltypemodule::controltype object to deallocate
+  !> @param[in] staticData If .true., also deallocate the static data members
   !>
   !> @callergraph
   !>
@@ -123,7 +124,7 @@ contains
   !>
   !> @date 23 Jan 2017
 
-  subroutine deallocateCtrl (ctrl)
+  subroutine deallocateCtrl (ctrl,staticData)
 
     use IdTypeModule        , only : deallocateId
     use AllocationModule    , only : reAllocate
@@ -132,38 +133,112 @@ contains
 #endif
 
     type(ControlType), intent(inout) :: ctrl
+    logical, optional, intent(in)    :: staticData
 
     !! Local variables
     integer :: i
+    logical :: deallocAll
 
     !! --- Logic section ---
 
-    if (associated(ctrl%input)) deallocate(ctrl%input)
+    if (present(staticData)) then
+       deallocAll = staticData
+    else
+       deallocAll = .true.
+    end if
+
     if (associated(ctrl%ireg))  deallocate(ctrl%ireg)
     if (associated(ctrl%rreg))  deallocate(ctrl%rreg)
-    if (associated(ctrl%delay)) deallocate(ctrl%delay)
     if (associated(ctrl%vreg))  deallocate(ctrl%vreg)
 
-    if (associated(ctrl%vregId)) then
-       do i = 1, size(ctrl%vregId)
-          call deallocateId (ctrl%vregId(i))
-       end do
-       deallocate(ctrl%vregId)
-    end if
-
+    if (deallocAll) then
+       if (associated(ctrl%input)) deallocate(ctrl%input)
+       if (associated(ctrl%vregId)) then
+          do i = 1, size(ctrl%vregId)
+             call deallocateId (ctrl%vregId(i))
+          end do
+          deallocate(ctrl%vregId)
+       end if
 #ifdef FT_HAS_EXTCTRL
-    if (associated(ctrl%extCtrlSys)) then
-       do i = 1, size(ctrl%extCtrlSys)
-          call deallocateExtCtrlSys (ctrl%extCtrlSys(i))
-       end do
-       deallocate(ctrl%extCtrlSys)
-    end if
+       if (associated(ctrl%extCtrlSys)) then
+          do i = 1, size(ctrl%extCtrlSys)
+             call deallocateExtCtrlSys (ctrl%extCtrlSys(i))
+          end do
+          deallocate(ctrl%extCtrlSys)
+       end if
 #endif
+    end if
 
     call reAllocate ('deallocateCtrl',ctrl%delay)
     call nullifyCtrl (ctrl,.true.)
 
   end subroutine deallocateCtrl
+
+
+  !!============================================================================
+  !> @brief Makes a copy of a control system object.
+  !>
+  !> @param[in] ctrlIn The controltypemodule::controltype object to copy from
+  !> @param ctrlCopy Pointer to the copied controltypemodule::controltype object
+  !> @param[out] ierr Error flag
+  !>
+  !> @details If the @a ctrlCopy pointer is NULL on input, the object is
+  !> allocated to match the dimension of the @a ctrlIn object.
+  !> Otherwise, it is assumed that the data members have the correct sizes.
+  !> Only the dynamic data members are copied physically. The static members,
+  !> which not are supposed to change after data input, are shared.
+  !>
+  !> @callergraph
+  !>
+  !> @author Knut Morten Okstad
+  !>
+  !> @date 18 Jan 2024
+
+  subroutine CopyCtrl (ctrlIn,ctrlCopy,ierr)
+
+    use allocationModule , only : reAllocate
+    use reportErrorModule, only : AllocationError
+
+    type(ControlType), intent(in)  :: ctrlIn
+    type(ControlType), pointer     :: ctrlCopy
+    integer, optional, intent(out) :: ierr
+
+    !! --- Logic section
+
+    if (.not. associated(ctrlCopy) .and. present(ierr)) then
+       allocate(ctrlCopy,STAT=ierr)
+       if (ierr == 0) then
+          allocate(ctrlCopy%ireg(size(ctrlIn%ireg)), &
+               &   ctrlCopy%rreg(size(ctrlIn%rreg)), &
+               &   ctrlCopy%vreg(size(ctrlIn%vreg)), STAT=ierr)
+       end if
+       if (ierr /= 0) then
+          ierr = AllocationError('CopyCtrl')
+          return
+       end if
+
+       !! Using the reAllocate subroutine for delay to match deallocateCtrl()
+       nullify(ctrlCopy%delay)
+       call reAllocate ('CopyCtrl',ctrlCopy%delay,size(ctrlIn%delay),ierr)
+       if (ierr < 0) return
+    end if
+
+    ctrlCopy%input   => ctrlIn%input
+    ctrlCopy%vregId  => ctrlIn%vregId
+    ctrlCopy%vreg    =  ctrlIn%vreg
+    ctrlCopy%saveVar =  ctrlIn%saveVar
+
+    ctrlCopy%mpireg  = ctrlIn%mpireg
+    ctrlCopy%mprreg  = ctrlIn%mprreg
+    ctrlCopy%ireg    = ctrlIn%ireg
+    ctrlCopy%rreg    = ctrlIn%rreg
+    ctrlCopy%delay   = ctrlIn%delay
+
+#ifdef FT_HAS_EXTCTRL
+    ctrlCopy%extCtrlSys => ctrlIn%extCtrlSys
+#endif
+
+  end subroutine CopyCtrl
 
 
   !!============================================================================
@@ -821,6 +896,39 @@ contains
     logical :: hasControlElements
     hasControlElements = size(ctrl%input) > 0
   end function hasControlElements
+
+
+  !!============================================================================
+  !> @brief Returns sensor measuring structural response for an input element.
+  !>
+  !> @param[in] input The controltypemodule::ctrlprm object to get sensor for
+  !>
+  !> @callergraph
+  !>
+  !> @author Knut Morten Okstad
+  !>
+  !> @date 19 Jan 2024
+
+  function getSensor (input)
+
+    type(CtrlPrm), intent(in) :: input
+    type(SensorType), pointer :: getSensor
+
+    !! --- Logic section ---
+
+    if (associated(input%sensor)) then
+       getSensor => input%sensor
+    else if (associated(input%engine)) then
+       if (size(input%engine%args) > 0) then
+          getSensor => input%engine%args(1)%p
+       else
+          nullify(getSensor)
+       end if
+    else
+       nullify(getSensor)
+    end if
+
+  end function getSensor
 
 
   !!============================================================================
