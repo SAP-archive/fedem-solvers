@@ -189,7 +189,7 @@ size_t searchPoints (std::string& ftlFile, FFlLinkHandler*& feModel,
 
   // Print node summary
   size_t nNodes = 0;
-  for (const std::pair<int,NodeMap>& nodeList : nodes)
+  for (const std::pair<const int,NodeMap>& nodeList : nodes)
   {
     nNodes += nodeList.second.size();
     std::cout <<"Interface"<< std::setw(2) << nodeList.first <<":"
