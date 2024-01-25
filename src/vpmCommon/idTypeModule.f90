@@ -134,7 +134,7 @@ contains
     if (id%descr == '') then
        write(lpu,"(';')",advance=adv)
     else
-       write(lpu,601) trim(id%descr)
+       write(lpu,601,advance=adv) trim(id%descr)
     end if
 
 600 format('{"',a,'";')

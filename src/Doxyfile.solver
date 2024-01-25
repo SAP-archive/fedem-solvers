@@ -775,7 +775,6 @@ INPUT                   = src/vpmSolver \
                           src/vpmSolver/vpmSolverTests \
                           src/vpmReducer \
                           src/vpmReducer/vpmReducerTests \
-                          src/pFUnitExtraArg.f90 \
                           src/vpmCommon \
                           src/vpmCommon/vpmLinAlg \
                           src/vpmStress/displacementModule.f90 \
@@ -784,23 +783,24 @@ INPUT                   = src/vpmSolver \
                           src/vpmUtilities \
                           src/FemLib/beam.f \
                           src/FemLib/beamaux.f \
-                          fedem_foundation/src/gtest.h \
-                          fedem_foundation/src/FFrLib \
-                          fedem_foundation/src/FFaLib/FFaAlgebra \
-                          fedem_foundation/src/FFaLib/FFaCmdLineArg \
-                          fedem_foundation/src/FFaLib/FFaDefinitions \
-                          fedem_foundation/src/FFaLib/FFaDynCalls/FFaDynCB.H \
-                          fedem_foundation/src/FFaLib/FFaPatterns/FFaGenericFactory.H \
-                          fedem_foundation/src/FFaLib/FFaPatterns/FFaSingelton.H \
-                          fedem_foundation/src/FFaLib/FFaOperation \
-                          fedem_foundation/src/FFaLib/FFaOS \
-                          fedem_foundation/src/FFaLib/FFaString \
-                          fedem_foundation/src/FFaFunctionLib \
-                          fedem_foundation/src/FFaMathExpr \
-                          fedem_foundation/src/FFpLib/FFpCurveData \
-                          fedem_foundation/src/FFpLib/FFpExport \
-                          fedem_foundation/src/FiDeviceFunctions \
-                          fedem_foundation/src/FiUserElmPlugin
+                          fedem-foundation/pFUnit/pFUnitExtraArg.f90 \
+                          fedem-foundation/src/gtest.h \
+                          fedem-foundation/src/FFrLib \
+                          fedem-foundation/src/FFaLib/FFaAlgebra \
+                          fedem-foundation/src/FFaLib/FFaCmdLineArg \
+                          fedem-foundation/src/FFaLib/FFaDefinitions \
+                          fedem-foundation/src/FFaLib/FFaDynCalls/FFaDynCB.H \
+                          fedem-foundation/src/FFaLib/FFaPatterns/FFaGenericFactory.H \
+                          fedem-foundation/src/FFaLib/FFaPatterns/FFaSingelton.H \
+                          fedem-foundation/src/FFaLib/FFaOperation \
+                          fedem-foundation/src/FFaLib/FFaOS \
+                          fedem-foundation/src/FFaLib/FFaString \
+                          fedem-foundation/src/FFaFunctionLib \
+                          fedem-foundation/src/FFaMathExpr \
+                          fedem-foundation/src/FFpLib/FFpCurveData \
+                          fedem-foundation/src/FFpLib/FFpExport \
+                          fedem-foundation/src/FiDeviceFunctions \
+                          fedem-foundation/src/FiUserElmPlugin
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -825,7 +825,7 @@ INPUT_ENCODING         = UTF-8
 # *.m, *.markdown, *.md, *.mm, *.dox, *.py, *.pyw, *.f90, *.f, *.for, *.tcl,
 # *.vhd, *.vhdl, *.ucf, *.qsf, *.as and *.js.
 
-FILE_PATTERNS          = *.f90 *.f *.C *.c *.H *.h *.dox *.md
+FILE_PATTERNS          = *.f90 *.f *.C *.c *.H *.h *.dox
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
@@ -847,10 +847,7 @@ EXCLUDE                = src/vpmSolver/dummyResStressModule.f90 \
                          src/vpmCommon/vpmLinAlg/feDataRoutines.f90 \
                          src/vpmCommon/vpmLinAlg/feLanczosModule.f90 \
                          src/vpmUtilities/sparseMatrixUtils.C \
-                         src/vpmUtilities/sparseMatrixInterface.f90 \
-                         src/vpmUtilities/sparseMatrixModule.f90 \
-                         src/vpmUtilities/diskMatrixModule.f90 \
-                         src/vpmUtilities/sDiskMatrixModule.f90
+                         src/vpmUtilities/sparseMatrixInterface.f90
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
