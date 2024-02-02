@@ -166,6 +166,7 @@ if ( WIN AND DEFINED ENV{MKLROOT} )
   endif ( FTENV_VERBOSE )
   set ( MKL_REDIST ${MKL_PATH}/mkl_core.2.dll ${MKL_PATH}/mkl_def.2.dll
                    ${MKL_PATH}/mkl_avx2.2.dll ${MKL_PATH}/mkl_vml_avx2.2.dll
+                   ${MKL_PATH}/mkl_avx512.2.dll ${MKL_PATH}/mkl_vml_avx512.2.dll
                    ${MKL_PATH}/mkl_intel_thread.2.dll )
   install ( FILES ${MKL_REDIST} DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" )
 endif ( WIN AND DEFINED ENV{MKLROOT} )
