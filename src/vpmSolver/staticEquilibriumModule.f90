@@ -270,7 +270,7 @@ contains
              write(dLPU,"(//' >>> DUMP OF SYSTEM STIFFNESS MATRIX <<<<<')")
              write(dLPU,*) '    ndof1       =', sam%ndof1
              write(dLPU,*) '    neq         =', sam%neq
-             call writeObject (sys%Nmat,sam%mpar,dLPU)
+             call writeObject (sys%Nmat,dLPU)
              write(dLPU,"('')")
              call writeObject (sys%del,dLPU,'     Right-hand-side vector')
           end if
@@ -671,7 +671,7 @@ contains
              write(lpu,"(//' >>> DUMP OF SYSTEM STIFFNESS MATRIX <<<<<')")
              write(lpu,*) '    ndof1       =', sam%ndof1
              write(lpu,*) '    neq         =', sam%neq
-             call writeObject (sys%Nmat,sam%mpar,lpu)
+             call writeObject (sys%Nmat,lpu)
           end if
 
           if (abs(iop) == 1) then

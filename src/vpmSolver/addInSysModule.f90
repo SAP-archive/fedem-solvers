@@ -158,7 +158,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%sups) > 0) then
        write(dbgSolve,100) 'superelement'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 100 format(/'System Newton matrix after ',A,' assembly')
@@ -179,7 +179,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%elms) > 0) then
        write(dbgSolve,100) 'userdefined element'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
@@ -193,7 +193,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%bElems) > 0) then
        write(dbgSolve,100) 'bushing element'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
@@ -210,7 +210,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%cElems) > 0) then
        write(dbgSolve,100) 'contact element'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
@@ -254,7 +254,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%axialSprings) > 0) then
        write(dbgSolve,100) 'spring'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
@@ -268,7 +268,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%dampers) > 0) then
        write(dbgSolve,100) 'damper'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
@@ -281,7 +281,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%masses) > 0) then
        write(dbgSolve,100) 'additional mass'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
@@ -299,7 +299,7 @@ contains
 #ifdef FT_DEBUG
     if (iprint == -99 .and. size(mech%tires) > 0) then
        write(dbgSolve,100) 'tire'
-       call writeObject (Nmat,sam%mpar,dbgSolve)
+       call writeObject (Nmat,dbgSolve)
        if (present(Rhs)) call writeObject (Rhs,dbgSolve,'System RHS vector')
     end if
 #endif
