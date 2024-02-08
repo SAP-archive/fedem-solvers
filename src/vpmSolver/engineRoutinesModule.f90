@@ -395,9 +395,8 @@ contains
   recursive function SensorRate (sensor,ierr) result (rVal)
 
     use kindModule       , only : dp
-    use SensorTypeModule , only : SensorType, sensorType_p
+    use SensorTypeModule , only : SensorType, getSensorId
     use SensorTypeModule , only : TIME_p, CONTROL_p, NUM_ITERATIONS_p, ENGINE_p
-    use IdTypeModule     , only : getId
     use reportErrorModule, only : reportError, error_p
 
     type(SensorType), intent(in)    :: sensor
@@ -422,9 +421,8 @@ contains
     case default
        rVal = 0.0_dp
        ierr = ierr - 1
-       call reportError (error_p,'Can not evaluate time-derivative of Sensor'//&
-            &            trim(getId(sensor%id))//' of type '// &
-            &            sensorType_p(sensor%type), addString='SensorRate')
+       call reportError (error_p,'Can not evaluate time-derivative of '// &
+            &            getSensorId(sensor,.false.), addString='SensorRate')
     end select
 
   end function SensorRate
@@ -535,7 +533,7 @@ contains
   recursive subroutine UpdateSensor (sensor,ierr)
 
     use kindModule       , only : dp
-    use SensorTypeModule , only : SensorType, sensorType_p, ourTime
+    use SensorTypeModule , only : SensorType, getSensorId, ourTime
     use SensorTypeModule , only : TIME_p, ENGINE_p, CONTROL_p, MATLAB_WS_p
     use SensorTypeModule , only : JOINT_VARIABLE_p, RELATIVE_TRIAD_p, TRIAD_p
     use SensorTypeModule , only : SPRING_AXIAL_p, SPRING_JOINT_p
@@ -547,7 +545,6 @@ contains
     use WindTurbineRoutinesModule, only : getWindSpeed
     use HydrodynamicsModule, only : getSeaState
     use TriadTypeModule  , only : transVSysToGlob
-    use IdTypeModule     , only : getId
     use reportErrorModule, only : internalError, reportError, error_p
 
     type(SensorType), intent(inout) :: sensor
@@ -642,9 +639,8 @@ contains
     end select
 
     if (ierr < lerr) then
-       call reportError (error_p,'Failed to update Sensor'// &
-            &            trim(getId(sensor%id))//' of type '// &
-            &            sensorType_p(sensor%type), addString='UpdateSensor')
+       call reportError (error_p,'Failed to update '// &
+            &            getSensorId(sensor,.false.), addString='UpdateSensor')
     end if
 
   contains
