@@ -20,7 +20,6 @@ subroutine testANDES
   use andes3ShellModule, only : Andes3shell_stiffmat
   use andes4ShellModule, only : Andes4shell_stiffmat
   use manipMatrixModule, only : writeObject
-  use reportErrorModule, only : setErrorFile
 #if FT_PFUNIT > 3
   use funit, only : assertEqual, assertGreaterThan
   use funit, only : sourceLocation, anyExceptions
@@ -47,7 +46,6 @@ subroutine testANDES
   EK3 = 0.0_dp
   EK4 = 0.0_dp
 
-  call setErrorFile (6)
   call isoMat2D (Emod*t,nu,C(1:3,1:3))
   do i = 1,3
      do j = 1,3
@@ -58,7 +56,7 @@ subroutine testANDES
   Xl(2) =  5.457440397558195e-2_dp
   Xl(3) = -8.334066962371289e-2_dp
   Yl(3) =  5.954376492052836e-2_dp
-  call Andes3shell_stiffmat (Xl,Yl,C,alpha,alphaH,ltype,EK3,IERR)
+  call Andes3shell_stiffmat (Xl,Yl,C,alpha,alphaH,ltype,EK3,6,IERR)
   @assertEqual(0,IERR)
 
   write(6,"(' XL =',1P3E23.15)") XL(1:3)
@@ -80,7 +78,7 @@ subroutine testANDES
   Xl(3) = 3.067533838264862e-2_dp
   Yl(3) = 0.138125_dp
   Yl(4) = 0.138125_dp
-  call Andes4shell_stiffmat (Xl,Yl,Zl,C,alpha,beta,ltype,EK4,IERR)
+  call Andes4shell_stiffmat (Xl,Yl,Zl,C,alpha,beta,ltype,EK4,6,IERR)
   @assertEqual(0,IERR)
 
   write(6,"(' XL =',1P4E23.15)") XL

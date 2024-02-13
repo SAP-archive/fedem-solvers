@@ -24,7 +24,7 @@ module Andes4ShellModule
 
 contains
 
-  subroutine StrainDispMatrix4ben (lumpType,alphaH,x,y,z,xsi,eta,Bmatrix,ierr)
+  subroutine StrainDispMatrix4ben (lumpType,alphaH,x,y,z,xsi,eta,Bmat,lpu,ierr)
 
     !***************************************************************************
     ! Computes the strain-displacement matrix for a 4-noded bending element.
@@ -35,9 +35,10 @@ contains
     ! alphaH   : Scaling factor for the higher-order part
     ! x, y, z  : Delta coordinates
     ! xsi, eta : Natural coordinates of current integration point
+    ! lpu      : Logical print unit
     !
     ! Output arguments:
-    ! Bmatrix  : Strain-displacement matrix with cartesian curvatures
+    ! Bmat     : Strain-displacement matrix with cartesian curvatures
     !            Nodal dof ordering: 4 x-rot., 4 y-rot., 4 z-disp.
     ! ierr     : Error flag
     !***************************************************************************
@@ -46,7 +47,8 @@ contains
 
     integer , intent(in)  :: lumpType
     real(dp), intent(in)  :: alphaH, x(4,4), y(4,4), z(4,4), eta, xsi
-    real(dp), intent(out) :: Bmatrix(3,12)
+    real(dp), intent(out) :: Bmat(3,12)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     real(dp) :: a, Lt(3,12), Bh(3,12)
@@ -58,37 +60,39 @@ contains
     call lump4ben (lumpType,x,y,Lt)
 
     ! Compute the deviatoric part of the strain-displacement matrix
-    call bh4ben (x,y,z,xsi,eta,Bh,ierr)
+    call bh4ben (x,y,z,xsi,eta,Bh,lpu,ierr)
     if (ierr < 0) return
 
     ! Total strain-displacement matrix as the sum of the lumping matrix divided
     ! by the area, and the scaled higher-order strain-displacement matrix
-    Bmatrix = Lt/a + Bh*alphaH
+    Bmat = Lt/a + Bh*alphaH
 
   end subroutine StrainDispMatrix4ben
 
 
-  subroutine StrainDispMatrix4mem (alphaNR,alphaH,x,y,z,xsi,eta,Bmatrix,ierr)
+  subroutine StrainDispMatrix4mem (alphaNR,alphaH,x,y,z,xsi,eta,Bmat,lpu,ierr)
 
     !***************************************************************************
     ! Computes the strain-displacement matrix for a 4-noded membrane element.
     !
     ! Input arguments:
-    ! alphaNR : Scaling factor for the normal rotation part
-    ! alphaH  : Scaling factor for the higher-order part
-    ! x, y, z : Delta coordinates
-    ! xsi, eta: Natural coordinates of current integration point
+    ! alphaNR  : Scaling factor for the normal rotation part
+    ! alphaH   : Scaling factor for the higher-order part
+    ! x, y, z  : Delta coordinates
+    ! xsi, eta : Natural coordinates of current integration point
+    ! lpu      : Logical print unit
     !
     ! Output arguments:
-    ! Bmatrix : strain-displacement matrix with natural membrane strains
-    !           Nodal dof ordering: 4 x-disp., 4 y-disp., 4 normal rotations
-    ! ierr    : Error flag
+    ! Bmat     : Strain-displacement matrix with natural membrane strains
+    !            Nodal dof ordering: 4 x-disp., 4 y-disp., 4 normal rotations
+    ! ierr     : Error flag
     !***************************************************************************
 
     use KindModule, only : dp
 
     real(dp), intent(in)  :: alphaNR, alphaH, x(4,4), y(4,4), z(4,4), xsi, eta
-    real(dp), intent(out) :: Bmatrix(3,12)
+    real(dp), intent(out) :: Bmat(3,12)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     real(dp) :: a, Lt(3,12), Bh(3,12)
@@ -100,12 +104,12 @@ contains
     call lump4mem (x,y,alphaNR,Lt)
 
     ! Compute the deviatoric part of the strain-displacement matrix
-    call bh4mem (x,y,z,xsi,eta,Bh,ierr)
+    call bh4mem (x,y,z,xsi,eta,Bh,lpu,ierr)
     if (ierr < 0) return
 
     ! Total strain-displacement matrix as the sum of the lumping matrix divided
     ! by the area, and the scaled higher-order strain-displacement matrix
-    Bmatrix = Lt/a + Bh*alphaH
+    Bmat = Lt/a + Bh*alphaH
 
   end subroutine StrainDispMatrix4mem
 
@@ -192,6 +196,7 @@ contains
     ! Input:
     !   xij : delta coordinate, xij(i,j) = x(i) - x(j)
     !   yij : delta coordinate, yij(i,j) = y(i) - y(j)
+    !   lpu : Logical print unit
     !
     ! Output:
     !   bbenn : nodal strain-displacement matrices
@@ -285,7 +290,7 @@ contains
   end subroutine bben_nod_quad
 
 
-  subroutine bh4ben (x,y,z,xsi,eta,Bben,ierr)
+  subroutine bh4ben (x,y,z,xsi,eta,Bben,lpu,ierr)
 
     !***************************************************************************
     ! Computes strain-displacement matrix for a 4-noded bending element.
@@ -293,6 +298,7 @@ contains
     ! Input arguments:
     ! x, y, z  : Delta coordinates
     ! xsi, eta : Natural coordinates of current integration point
+    ! lpu      : Logical print unit
     !
     ! Output arguments:
     ! Bben : Strain-displacement matrix with cartesian curvatures
@@ -300,11 +306,11 @@ contains
     ! ierr : Error flag
     !***************************************************************************
 
-    use KindModule       , only : dp
-    use ReportErrorModule, only : getErrorFile
+    use KindModule, only : dp
 
     real(dp), intent(in)  :: x(4,4), y(4,4), z(4,4), xsi, eta
     real(dp), intent(out) :: Bben(3,12)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     integer, parameter :: nint = 2
@@ -313,7 +319,7 @@ contains
     real(dp) :: Bbenn(4,3,12), Bben_mean(3,12), nv(4), xl(4,3)
 
     ! bbenn has dof ordering 4 z-displ, 4 x-rot, 4 y-rot
-    call bben_nod_quad (x,y,Bbenn,getErrorFile(),ierr)
+    call bben_nod_quad (x,y,Bbenn,lpu,ierr)
     if (ierr < 0) return
 
     ! Calculate mean
@@ -481,6 +487,7 @@ contains
     ! Input:
     !   xij : delta coordinate, xij(i,j) = x(i) - x(j)
     !   yij : delta coordinate, yij(i,j) = y(i) - y(j)
+    !   lpu : Logical print unit
     !
     ! Output:
     !   bmqhn : higher-order strain displacement matrix
@@ -752,6 +759,7 @@ contains
     !   xij(i,j) : delta coordinate x(i) -x(j)
     !   yij(i,j) : delta coordinate y(i) -y(j)
     !   zij(i,j) : delta coordinate z(i) -z(j) (dummy so far )
+    !   lpu      : Logical print unit
     !
     ! Output:
     !   hmem : transformation from dof ordering:
@@ -855,7 +863,7 @@ contains
   end subroutine hmqv_quad
 
 
-  subroutine bh4mem (x,y,z,xsi,eta,Bmem,ierr)
+  subroutine bh4mem (x,y,z,xsi,eta,Bmem,lpu,ierr)
 
     !***************************************************************************
     ! Computes the strain-displacement matrix for a 4-noded membrane element.
@@ -863,6 +871,7 @@ contains
     ! Input arguments:
     ! x, y, z  : Delta coordinates
     ! xsi, eta : Natural coordinates of current integration point
+    ! lpu      : Logical print unit
     !
     ! Output arguments:
     ! Bmem : Strain-displacement matrix with natural membrane strains
@@ -870,20 +879,19 @@ contains
     ! ierr : Error flag (ierr < 0: Edge -ierr has zero or negative length)
     !***************************************************************************
 
-    use KindModule       , only : dp
-    use ReportErrorModule, only : getErrorFile
+    use KindModule, only : dp
 
     real(dp), intent(in)  :: x(4,4), y(4,4), z(4,4), xsi, eta
     real(dp), intent(out) :: Bmem(3,12)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     integer, parameter :: nint = 2
 
-    integer  :: i, j, lpu
+    integer  :: i, j
     real(dp) :: Bmemn(4,3,7), Bmemq(3,7), Bmem_mean(3,7), Hmem(7,12), nv(4)
     real(dp) :: xl(4,3)
 
-    lpu = getErrorFile()
     call bmqh_nod_quad (x,y,Bmemn,lpu,ierr)
 
     ! Calculate mean
@@ -906,7 +914,7 @@ contains
   end subroutine bh4mem
 
 
-  subroutine Bmatrix (lumpType,alphaH,alphaNR,xij,yij,zij,xsi,eta,Bmat,ierr)
+  subroutine Bmatrix (lumpType,alphaH,alphaNR,xij,yij,zij,xsi,eta,Bmat,lpu,ierr)
 
     !***************************************************************************
     ! Creates the final B-matrix, based on the membrane and bending parts.
@@ -917,6 +925,7 @@ contains
     ! alphaNR  : Scaling factor for the normal rotation part
     ! xij-zij  : Delta coordinates
     ! xsi,eta  : Natural coordinates of current integration point
+    ! lpu      : Logical print unit
     !
     ! Output:
     ! Bmat     : Final B-matrix with dof ordering
@@ -926,7 +935,7 @@ contains
 
     use KindModule, only : dp
 
-    integer , intent(in)  :: lumpType
+    integer , intent(in)  :: lumpType, lpu
     real(dp), intent(in)  :: xij(4,4), yij(4,4), zij(4,4), alphaH, alphaNR
     real(dp), intent(in)  :: xsi, eta
     real(dp), intent(out) :: Bmat(6,24)
@@ -939,11 +948,11 @@ contains
     integer, parameter :: dofb(12) =(/ 4,10,16,22,  5,11,17,23,  3, 9,15,21 /)
 
     ! Create Bm
-    call StrainDispMatrix4mem(alphaNR,alphaH,xij,yij,zij,xsi,eta,Bm,ierr)
+    call StrainDispMatrix4mem (alphaNR,alphaH,xij,yij,zij,xsi,eta,Bm,lpu,ierr)
     if (ierr < 0) return
 
     ! Create Bb
-    call StrainDispMatrix4ben(lumptype,alphaH,xij,yij,zij,xsi,eta,Bb,ierr)
+    call StrainDispMatrix4ben (lumptype,alphaH,xij,yij,zij,xsi,eta,Bb,lpu,ierr)
     if (ierr < 0) return
 
     ! Create the final B-matrix(6,24)
@@ -1042,7 +1051,8 @@ contains
   end subroutine shape4
 
 
-  subroutine Andes4shell_stiffmat (Xg,Yg,Zg,Cmat,alpha,beta,lumpType,Kmat,IERR)
+  subroutine Andes4shell_stiffmat (Xg,Yg,Zg,Cmat,alpha,beta,lumpType,Kmat, &
+       &                           lpu,IERR)
 
     !***************************************************************************
     ! Creates the stiffness matrix for a 4-noded shell element.
@@ -1052,16 +1062,16 @@ contains
 
     real(dp), intent(in)  :: Xg(4), Yg(4), Zg(4), Cmat(6,6), alpha, beta
     real(dp), intent(out) :: Kmat(24,24)
-    integer , intent(in)  :: lumpType
+    integer , intent(in)  :: lumpType, lpu
     integer , intent(out) :: ierr
 
     integer, parameter :: nmult = 2
     integer            :: i, j
-    real(dp)           :: xsi(nmult), weight(nmult), wJ, Bmat(6,24)
+    real(dp)           :: xi(nmult), weight(nmult), wJ, Bmat(6,24)
     real(dp)           :: alpH, dx(4,4), dy(4,4), dz(4,4), xl(4,3)
 
     ! Gauss quadrature coordinates and weights
-    call getGaussForm (nmult,xsi,weight)
+    call getGaussForm (nmult,xi,weight)
 
     ! Delta values for the nodal coordinates
     do i = 1, 4
@@ -1081,12 +1091,14 @@ contains
     alpH = sqrt(beta)
     do i = 1, nMult
         do j = 1, nMult
-          wJ = jacobi_quad(xsi(i),xsi(j),xl)*weight(i)*weight(j)
-          call Bmatrix(lumpType,alpH,alpha,dx,dy,dz,xsi(i),xsi(j),Bmat,ierr)
+          wJ = jacobi_quad(xi(i),xi(j),xl)*weight(i)*weight(j)
+          call Bmatrix (lumpType,alpH,alpha,dx,dy,dz,xi(i),xi(j),Bmat,lpu,ierr)
           if (ierr < 0) exit
           Kmat = Kmat + matmul(transpose(Bmat),matmul(Cmat*wJ,Bmat))
         end do
     end do
+
+    if (ierr < 0) write(lpu,"(' *** Andes4shell_stiffmat failed')")
 
   end subroutine Andes4shell_stiffmat
 

@@ -68,7 +68,7 @@ contains
   end subroutine StrainDispMatrix3ben
 
 
-  subroutine StrainDispMatrix3mem (alphaNR,alphaH,x,y,zeta,Bmatrix,ierr)
+  subroutine StrainDispMatrix3mem (alphaNR,alphaH,x,y,zeta,Bmatrix,lpu,ierr)
 
     !***************************************************************************
     ! Computes the strain-displacement matrix for a 3-noded membrane element.
@@ -77,6 +77,7 @@ contains
     ! alphaNR : Scaling factor for the normal rotation part
     ! alphaH  : Scaling factor for the higher-order part
     ! x, y    : Delta coordinates
+    ! lpu     : Logical print unit
     ! zeta    : Area coordinates of current integration point
     !
     ! Output arguments:
@@ -89,6 +90,7 @@ contains
 
     real(dp), intent(in)  :: alphaNR, alphaH, x(3,3), y(3,3), zeta(3)
     real(dp), intent(out) :: Bmatrix(3,9)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     real(dp) :: a, Lt(3,9), Bh(3,9)
@@ -100,7 +102,7 @@ contains
     call lump3mem (x,y,alphaNR,Lt)
 
     ! Compute the deviatoric part of the strain-displacement matrix
-    call bh3mem (x,y,zeta,Bh,ierr)
+    call bh3mem (x,y,zeta,Bh,lpu,ierr)
     if (ierr < 0) return
 
     ! Total strain-displacement matrix as the sum of the lumping matrix divided
@@ -414,7 +416,7 @@ contains
   end subroutine lump3mem
 
 
-  subroutine bh3mem (x,y,zeta,Bmem,ierr)
+  subroutine bh3mem (x,y,zeta,Bmem,lpu,ierr)
 
     !***************************************************************************
     ! Computes the strain-displacement matrix for a 3-noded membrane element.
@@ -422,6 +424,7 @@ contains
     ! Input arguments:
     ! x, y : Delta coordinates
     ! zeta : Area coordinates of current integration point
+    ! lpu  : Logical print unit
     !
     ! Output arguments:
     ! Bmem : Strain-displacement matrix with natural membrane strains
@@ -433,6 +436,7 @@ contains
 
     real(dp), intent(in)  :: x(3,3), y(3,3), zeta(3)
     real(dp), intent(out) :: Bmem(3,9)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     real(dp) :: length(3), area2, ht(3,9), Tmat(3,3), Bcar(3,3)
@@ -440,7 +444,7 @@ contains
     integer  :: i
 
     ! Compute side lengths and strain transformation matrix
-    call tran_mstrain (x,y,length,Tmat,ierr)
+    call tran_mstrain (x,y,length,Tmat,lpu,ierr)
     if (ierr < 0) return
 
     ! Form natural coordinate B-matrix from hierarcical rotations
@@ -516,13 +520,14 @@ contains
   end subroutine tran_bstrain
 
 
-  subroutine tran_mstrain (x,y,length,Tmat,ierr)
+  subroutine tran_mstrain (x,y,length,Tmat,lpu,ierr)
 
     !***************************************************************************
     ! Computes transformation matrix from Natural to Cartesian membrane strains.
     !
     ! Input arguments:
     ! x, y   : Delta coordinates (x(i,j) = xi - xj)
+    ! lpu    : Logical print unit
     !
     ! Output arguments:
     ! length : Side lengths
@@ -532,10 +537,10 @@ contains
 
     use kindModule       , only : dp, epsDiv0_p
     use manipMatrixModule, only : invert33
-    use reportErrorModule, only : getErrorFile
 
     real(dp), intent(in)  :: x(3,3), y(3,3)
     real(dp), intent(out) :: length(3), tmat(3,3)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     integer  :: i, j, k
@@ -556,13 +561,13 @@ contains
        Tinv(j,3) = x(k,j)*y(k,j)/len2
     end do
 
-    Tmat = invert33(Tinv,getErrorFile(),ierr)
+    Tmat = invert33(Tinv,lpu,ierr)
     ierr = ierr*10
 
   end subroutine tran_mstrain
 
 
-  subroutine Bmatrix (lumpType,alphaH,alphaNR,dx,dy,zeta,Bmat,ierr)
+  subroutine Bmatrix (lumpType,alphaH,alphaNR,dx,dy,zeta,Bmat,lpu,ierr)
 
     !***************************************************************************
     ! Creates the final B-matrix, based on the membrane and bending parts.
@@ -572,6 +577,7 @@ contains
     ! alphaH   : Scaling factor for the higher-order part
     ! alphaNR  : Scaling factor for the normal rotation part
     ! dx, dy   : Delta coordinates
+    ! lpu      : Logical print unit
     ! zeta     : Area coordinates of current integration point
     !
     ! Output arguments:
@@ -585,6 +591,7 @@ contains
     integer , intent(in)  :: lumpType
     real(dp), intent(in)  :: dx(3,3), dy(3,3), alphaH, alphaNR, zeta(3)
     real(dp), intent(out) :: Bmat(6,18)
+    integer , intent(in)  :: lpu
     integer , intent(out) :: ierr
 
     integer  :: i
@@ -598,7 +605,7 @@ contains
     if (ierr < 0) return
 
     ! Create Bm
-    call StrainDispMatrix3mem (alphaNR,alphaH,dx,dy,zeta,Bm,ierr)
+    call StrainDispMatrix3mem (alphaNR,alphaH,dx,dy,zeta,Bm,lpu,ierr)
     if (ierr < 0) return
 
     ! Create the final B-matrix(6,18)
@@ -627,24 +634,22 @@ contains
   end subroutine Bmatrix
 
 
-  subroutine Andes3shell_stiffmat (xl,yl,Cmat,alpha,beta,lumpType,Kmat,ierr)
+  subroutine Andes3shell_stiffmat (xl,yl,Cmat,alpha,beta,lumpType,Kmat,lpu,ierr)
 
     !***************************************************************************
     ! Creates the stiffness matrix for a 3-noded shell element.
     !***************************************************************************
 
-    use kindModule       , only : dp, epsDiv0_p
-    use reportErrorModule, only : reportError, error_p, debugFileOnly_p
+    use kindModule, only : dp, epsDiv0_p
 
     real(dp), intent(in)  :: xl(3), yl(3), Cmat(6,6), alpha, beta
     real(dp), intent(out) :: Kmat(18,18)
-    integer , intent(in)  :: lumpType
+    integer , intent(in)  :: lumpType, lpu
     integer , intent(out) :: ierr
 
     integer, parameter :: nmult = 3
     integer            :: i, j
     real(dp)           :: Bmat(6,18), lstzeta(3,nmult), aw, dx(3,3), dy(3,3)
-    character(len=64)  :: errMsg
 
     ! Triangle quadrature points
     lstzeta = 0.5_dp
@@ -663,8 +668,9 @@ contains
     ! Element area scaled by integration point weight (1/3)
     aw = (dx(2,1)*dy(3,1) - dx(3,1)*dy(2,1))/6.0_dp
     if (aw < epsDiv0_p) then
-       write(errMsg,"('Degenerated element, non-positive area',1PE13.5)") aw
-       call reportError (error_p,errMsg,addString='Andes3shell_stiffmat')
+       write(lpu,600) aw
+600    format(' *** Andes3shell_stiffmat: ', &
+            & ' Degenerated element, non-positive area', 1PE13.5)
        ierr = -9
        return
     end if
@@ -673,16 +679,17 @@ contains
     ierr = 0
     Kmat = 0.0_dp
     do i = 1, nmult
-       call Bmatrix (lumpType,beta,alpha,dx,dy,lstzeta(:,i),Bmat,ierr)
+       call Bmatrix (lumpType,beta,alpha,dx,dy,lstzeta(:,i),Bmat,lpu,ierr)
        if (ierr < 0) exit
        Kmat = Kmat + matmul(transpose(Bmat),matmul(Cmat*aw,Bmat))
     end do
 
     if (ierr < -3) then
-       call reportError (debugFileOnly_p,'Andes3shell_stiffmat')
+       write(lpu,"(' *** Andes3shell_stiffmat failed')")
     else if (ierr < 0) then
-       write(errMsg,"('Degenerated element, non-positive edge',I2)") -ierr
-       call reportError (error_p,errMsg,addString='Andes3shell_stiffmat')
+       write(lpu,601) -ierr
+601    format(' *** Andes3shell_stiffmat: ', &
+            & ' Degenerated element, non-positive edge', I2)
     end if
 
   end subroutine Andes3shell_stiffmat

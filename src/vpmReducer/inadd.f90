@@ -1351,7 +1351,7 @@ contains
     ! --- BEREGNER ELEMENTETS STIVHETSMATRISE
 
     call Cmatrix (laminate,thetaMaterial,Cmat)
-    call Andes3shell_stiffmat (xl,yl,Cmat,alpha,alphaH,ltype,Kmat,ierr)
+    call Andes3shell_stiffmat (xl,yl,Cmat,alpha,alphaH,ltype,Kmat,LPU,ierr)
     if (ierr < 0) then
        call ReportError (error_p,'computing shell stiffness matrix')
        return
@@ -1502,7 +1502,7 @@ contains
     ! --- BEREGNER ELEMENTETS STIVHETSMATRISE
 
     ! Zl has to be close to zero, i.e. best fit in X-Y plane
-    call Andes4shell_stiffmat (Xl,Yl,Zl,Cmat,alpha,beta,ltype,Kmat,IERR)
+    call Andes4shell_stiffmat (Xl,Yl,Zl,Cmat,alpha,beta,ltype,Kmat,LPU,IERR)
     IF (IERR < 0) THEN
        call ReportError (error_p,'computing shell stiffness matrix')
        return
