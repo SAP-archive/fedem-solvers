@@ -26,9 +26,7 @@
 #include "FiDeviceFunctions/FiDeviceFunctionFactory.H"
 #include "FFrLib/FFrReadOpInit.H"
 #ifdef FT_HAS_RECOVERY
-#define FFL_INIT_ONLY
-#include "FFlLib/FFlIOAdaptors/FFlAllIOAdaptors.H"
-#include "FFlLib/FFlFEParts/FFlAllFEParts.H"
+#include "FFlLib/FFlInit.H"
 #endif
 #include "FFaMathExpr/FFaMathExprFactory.H"
 #include "FFaLib/FFaDefinitions/FFaMsg.H"

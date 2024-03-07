@@ -10,17 +10,13 @@
   \brief Solution field mapping utility for sub-model analysis.
 */
 
-//! \cond DO_NOT_DOCUMENT
-#define FFL_INIT_ONLY
-//! \endcond
 #include "FFrLib/FFrExtractor.H"
+#include "FFlLib/FFlInit.H"
 #include "FFlLib/FFlLinkHandler.H"
 #include "FFlLib/FFlConnectorItems.H"
 #include "FFlLib/FFlIOAdaptors/FFlReaders.H"
-#include "FFlLib/FFlIOAdaptors/FFlAllIOAdaptors.H"
 #include "FFlLib/FFlIOAdaptors/FFlFedemWriter.H"
 #include "FFlLib/FFlFEParts/FFlShellElementBase.H"
-#include "FFlLib/FFlFEParts/FFlAllFEParts.H"
 #include "FFlLib/FFlFEParts/FFlNode.H"
 #include "FFlLib/FFlElementBase.H"
 #include "FFaLib/FFaAlgebra/FFaMath.H"

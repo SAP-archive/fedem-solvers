@@ -9,11 +9,7 @@
   \brief Cleaning of global heap-allocated objects on program exit.
 */
 
-// \cond NO_DOCUMENTATION
-#define FFL_INIT_ONLY
-// \endcond NO_DOCUMENTATION
-#include "FFlLib/FFlIOAdaptors/FFlAllIOAdaptors.H"
-#include "FFlLib/FFlFEParts/FFlAllFEParts.H"
+#include "FFlLib/FFlInit.H"
 #include "FFaLib/FFaCmdLineArg/FFaCmdLineArg.H"
 #include "FFaLib/FFaDefinitions/FFaMsg.H"
 
