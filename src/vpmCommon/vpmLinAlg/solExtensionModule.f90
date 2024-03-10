@@ -1315,10 +1315,14 @@ contains
     call ffa_stopTimer ('csLanczosEigenSolve')
     return
 
-998 call reportError (error_p,'Failed to solve eigenvalue problem', &
-         &            'Rerun with command-line option -debug=1 to get', &
-         &            'lower-level messages from the eigenvalue solver.', &
-         &            IERR=ierr)
+998 if (ipsw < 0) then
+       call reportError (error_p,'Failed to solve eigenvalue problem', &
+            &            'Rerun with command-line option -debug=1 to get', &
+            &            'lower-level messages from the eigenvalue solver.', &
+            &            IERR=ierr)
+    else
+       call reportError (error_p,'Failed to solve eigenvalue problem',IERR=ierr)
+    end if
 999 call reportError (debugFileOnly_p,prgnam_p)
     goto 990
 

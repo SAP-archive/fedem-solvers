@@ -544,7 +544,7 @@ contains
        samData%meqn => sysMat%meqn
     end if
     if (associated(samData%meqn) .and. present(ipsw)) then
-       if (ipsw > 1) then
+       if (ipsw > 1 .and. sysMat%storageType == sparseMatrix_p) then
           call writeMEQN ('csAllocPointerArrays',samData%madof,samData%meqn,lpu)
        end if
     end if
