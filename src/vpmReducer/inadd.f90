@@ -11,9 +11,7 @@ module InaddModule
 
   private
 
-  integer, save :: unitBad(2) = 0
-
-  logical, parameter :: lStiffProj = .true.
+  integer, save :: unitBad(3) = 0 !< File unit for groups of bad elements
 
   interface INADD
      module procedure lhsINADD
@@ -52,6 +50,7 @@ contains
     use SysMatrixTypeModule    , only : SysMatrixType, writeObject
     use AsmExtensionModule     , only : csAddEM, csAddED
     use MatExtensionModule     , only : csGetDiag
+    use FileUtilitiesModule    , only : findUnitNumber
     use ManipMatrixModule      , only : writeObject
     use ProgressModule         , only : writeProgress
     use ReportErrorModule      , only : internalError
@@ -187,6 +186,13 @@ contains
           call ReportError (empty_p,errMsg)
           nErr(1) = nErr(1) + 1
           goto 100 ! Go on and try all elements before aborting the program
+       else if (ierr > 0) then
+          if (unitBad(3) == 0) then
+             unitBad(3) = findUnitNumber(10)
+             open(unitBad(3),FILE='bad_elements.ftl',STATUS='UNKNOWN')
+             write(unitBad(3),"('GROUP{3 ')",ADVANCE='no')
+          end if
+          write(unitBad(3),'(I8)',ADVANCE='no') ffl_getElmId(iel)
        end if
 
        elmShape = (/ nedof, nedof /)
@@ -276,17 +282,20 @@ contains
     end do
     if (nErr(1) > 0) then
        ierr = -nErr(1)
+       write(lpu,"()")
        write(errMsg,"(I8,' erroneous elements detected')") nErr(1)
        goto 900
     end if
     if (nErr(2) > 0) then
        ierr = nErr(2)
+       write(lpu,"()")
        write(errMsg,"(I8,' elements with')") nErr(2)
        call ReportError (warning_p,trim(adjustl(errMsg))// &
             &            ' negative diagonal stiffness terms detected')
     end if
     if (nErr(3) > 0) then
        ierr = ierr + nErr(3)
+       write(lpu,"()")
        write(errMsg,"(I8,' elements with')") nErr(3)
        call ReportError (warning_p,trim(adjustl(errMsg))// &
             &            ' non-symmetric stiffness matrix detected')
@@ -299,6 +308,10 @@ contains
     if (unitBad(2) > 0) then
        write(unitBad(2),600) 'NON-SYMMETRIC'
        close(unitBad(2))
+    end if
+    if (unitBad(3) > 0) then
+       write(unitBad(3),600) 'BAD'
+       close(unitBad(3))
     end if
 600 format(' {NAME "',A,' ELEMENTS"}}')
 
@@ -652,9 +665,9 @@ contains
     end if
 
 690 format(5X,'Dof',i3,': Diag = ',1PE12.5)
-691 format(I6,' negative diagonal term(s) found in element',I8,' of type',I4/)
+691 format(I6,' negative diagonal term(s) found in element',I8,' of type',I4)
 692 format(5X,'Dofs',2i3,': Upper, Lower, diff =',1P2E18.10,E13.5)
-693 format(I6,' non-symmetric term(s) found in element',I8,' of type',I4/)
+693 format(I6,' non-symmetric term(s) found in element',I8,' of type',I4)
 
   end subroutine checkMatrix
 
@@ -833,7 +846,7 @@ contains
 
     use KindModule             , only : dp, epsDiv0_p
     use ReportErrorModule      , only : reportError, error_p
-    use FFlLinkHandlerInterface, only : ffl_getCoor, ffl_getNSM, ffl_getElmId
+    use FFlLinkHandlerInterface, only : ffl_getCoor, ffl_getElmId, ffl_getNSM
     use FFlLinkHandlerInterface, only : ffl_getPinFlags, ffl_getBeamSection
 
     integer , parameter   :: neldof = 12
@@ -1117,18 +1130,14 @@ contains
        return
     END IF
 
-    if (lStiffProj) then
-       ! Compute projection matrix that restores stress free rigid body motions
-       CALL PMATSTIFF(xg,yg,zg,PMAT,LPU,IERR)
-       IF (IERR < 0) THEN
-          call ReportError (error_p,'computing projection matrix')
-          return
-       END IF
-       ! Project the stiffness matrix: K = P'*K*P
-       CALL SYMTRA(EM(1,1),PMAT(1,1),EK(1,1),EMV(1),NEDOF,NEDOF)
-    else
-       ek = em
-    end if
+    ! Compute projection matrix that restores stress free rigid body motions
+    CALL PMATSTIFF(xg,yg,zg,PMAT,LPU,IERR)
+    IF (IERR < 0) THEN
+       call ReportError (error_p,'computing projection matrix')
+       return
+    END IF
+    ! Project the stiffness matrix: K = P'*K*P
+    CALL SYMTRA(EM(1,1),PMAT(1,1),EK(1,1),EMV(1),NEDOF,NEDOF)
 
     ! --- BEREGNER ELEMENTETS MASSEMATRISE
 
@@ -1165,8 +1174,8 @@ contains
     use CompositeTypeModule    , only : CompositeType, Cmatrix
     use ManipMatrixModule      , only : trans3p
     use ReportErrorModule      , only : reportError, error_p
-    use FFlLinkHandlerInterface, only : ffl_getCoor, ffl_getMat, ffl_getThick
-    use FFlLinkHandlerInterface, only : ffl_getPMATSHELL, ffl_getNSM
+    use FFlLinkHandlerInterface, only : ffl_getCoor, ffl_getElmId, ffl_getNSM
+    use FFlLinkHandlerInterface, only : ffl_getPMATSHELL, ffl_getThick
     use FFlLinkHandlerInterface, only : ffl_hasAttribute, ffl_getAttributeID
 
     integer , parameter   :: neldof = 18
@@ -1188,7 +1197,7 @@ contains
 
     real(dp) :: Kmat(18,18), Cmat(6,6), thetaMaterial
     real(dp) :: xl(3), yl(3), Trel(3,4), Tel(3,3), TelT(3,3)
-    real(dp) :: X21, Y21, Z21, X31, Y31, Z31, SL21, SL31, COSG, AUX1, SING
+    real(dp) :: X21, Y21, Z21, X31, Y31, Z31, SL21, SL31, COSG, SING
 
     !! --- Logic section ---
 
@@ -1213,9 +1222,8 @@ contains
     SL21 = sqrt(X21*X21 + Y21*Y21 + Z21*Z21)
     SL31 = sqrt(X31*X31 + Y31*Y31 + Z31*Z31)
     COSG = (X31*X21 + Y31*Y21 + Z31*Z21)/(SL31*SL21)
-    AUX1 = 1.0_dp - COSG*COSG
-    if (AUX1 > 0.0_dp) then
-       SING = sqrt(AUX1)
+    if (COSG > -1.0_dp .and. COSG < 1.0_dp) then
+       SING = sqrt(1.0_dp - COSG*COSG)
     else
        SING = 0.0_dp
     end if
@@ -1242,6 +1250,15 @@ contains
     P3(3)=ZG(3)
 
     trel = trans3P(P1, P2, P3, lpu, ierr)
+    if (ierr < 0) then
+       write(lpu,600) ffl_getElmId(iel)
+       ierr = -ierr
+600    format('  ** The 3-noded shell element',I6, &
+            & ' has zero area and is ignored.' &
+            / '     Check your FE model for consistency.')
+       return
+    end if
+
     TelT = trel(1:3,1:3)
     Tel  = transpose(TelT)
 
@@ -1402,8 +1419,9 @@ contains
     use ManipMatrixModule      , only : trans3p
     use PmatModule             , only : pMatStiff
     use ReportErrorModule      , only : reportError, error_p
-    use FFlLinkHandlerInterface, only : ffl_getCoor, ffl_getMat, ffl_getThick
-    use FFlLinkHandlerInterface, only : ffl_getPMATSHELL, ffl_getNSM
+    use FFlLinkHandlerInterface, only : ffl_getCoor, ffl_getElmId
+    use FFlLinkHandlerInterface, only : ffl_getMat, ffl_getNSM
+    use FFlLinkHandlerInterface, only : ffl_getPMATSHELL, ffl_getThick
     use FFlLinkHandlerInterface, only : ffl_hasAttribute, ffl_getAttributeID
 
     integer , parameter   :: neldof = 24
@@ -1447,6 +1465,15 @@ contains
 
     tmp  = 0.5_dp*(coorG(:,3) + coorG(:,4))
     trel = trans3P(coorG(:,1), coorG(:,2), tmp, lpu, ierr)
+    if (ierr < 0) then
+       write(lpu,600) ffl_getElmId(iel)
+       ierr = -ierr
+600    format('  ** The 4-noded shell element',I6, &
+            & ' has zero area and is ignored.' &
+            / '     Check your FE model for consistency.')
+       return
+    end if
+
     TelT = trel(1:3,1:3)
     Tel  = transpose(TelT)
 
