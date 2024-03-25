@@ -20,7 +20,7 @@ see also the file ../src/fedempy/solver.py
 
   + def solver_init(self, options, fsi=None, state_data=None, gauge_data=None):
   - def restart_from_state(self, state_data, write_to_rdb=2):
-  - def solve_window(self, n_step, inputs=None, f_out=None):
+  - def solve_window(self, n_step, inputs=None, f_out=None, xtimes=None):
   - def get_state_size(self):
   - def get_gauge_size(self):
     def get_transformation_state_size(self):
@@ -28,22 +28,24 @@ see also the file ../src/fedempy/solver.py
     def get_part_stress_state_size(self, base_id):
   - def save_state(self):
   - def save_gauges(self):
-    def save_transformation_state(self, state_data, ndat):
-    def save_part_deformation_state(self, base_id, state_data, ndat):
-    def save_part_stress_state(self, base_id, state_data, ndat):
-  + def solve_next(self):
-  + def start_step(self):
+    def save_transformation_state(self, state_data):
+    def save_part_state(self, base_id, def_state, str_state):
+  + def solve_next(self, inp=None, inp_def=None, out_def=None, time_next=None):
+  + def start_step(self, time_next=None):
   + def solve_iteration(self):
   + def finish_step(self):
-  + def solve_modes(self, n_modes, dof_order=False):
-  + def solve_inverse(self, x, x_def, g_def, out_def=None):
-  + def solver_done(self):
+  + def solve_modes(self, n_modes, dof_order=False, use_lapack=0):
+  + def solve_inverse(self, x_val, x_def, g_def, out_def=None):
+  + def solver_done(self, remove_singletons=None):
   - def solver_close(self):
+    def run_all(self, options):
   - def set_ext_func(self, func_id, value=None):
   + def get_current_time(self):
   + def get_next_time(self):
+    def check_times(self, xtimes, use_times=True):
   + def get_function(self, uid=0, tag=None, arg=None):
-  - get_functions(self, uids):
+  - def get_functions(self, uids):
+    def get_function_ids(self, tags):
   + def get_equations(self, bid):
   + def get_system_size(self):
   + def get_system_dofs(self):
@@ -59,7 +61,9 @@ see also the file ../src/fedempy/solver.py
     def compute_strains_from_displ(self, disp, gauge_ids):
     def get_current_strains(self, gauge_ids):
     def compute_rel_dist_from_displ(self, disp, ids):
+    def compute_spring_var_from_displ(self, disp, ids):
     def compute_int_forces_from_displ(self, disp, ids):
+    def get_joint_spring_stiffness(self, bid):
 """
 
 from os import environ

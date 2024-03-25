@@ -565,7 +565,7 @@ class FedemSolver:
         """
         return self._solver.saveGages(self.gauge_data, self.gauge_size)
 
-    def save_transformation_state(self, state_data, ndat=None):
+    def save_transformation_state(self, state_data):
         """
         This method stores current transformation state for Triads, Parts
         and Beams in the provided core array.
@@ -592,19 +592,16 @@ class FedemSolver:
         ----------
         state_data : list of c_double
             Array to fill with transformation data
-        ndat : int, default=None
-            Length of the state_data array, set to len(state_data) if None
 
         Returns
         -------
         bool
             Always True, unless the state_data array is too small
         """
-        if ndat is None:
-            ndat = c_int(len(state_data))
+        ndat = c_int(len(state_data))
         return self._solver.saveTransformationState(state_data, ndat)
 
-    def save_part_state(self, base_id, def_state, str_state, ndef=None, nstr=None):
+    def save_part_state(self, base_id, def_state, str_state):
         """
         This method stores current deformation- and stress states
         for the specified FE Part in the provided core arrays.
@@ -617,10 +614,6 @@ class FedemSolver:
             Array to fill with deformation data
         str_state : list of c_couble
             Array to fill with stress data
-        ndef : int, default=None
-            Length of the def_state array, set to len(def_state) if none
-        nstr : int, default=None
-            Length of the str_state array, set to len(str_state) if none
 
         Returns
         -------
@@ -628,12 +621,11 @@ class FedemSolver:
             Always True, unless one or both of the state arrays are too small
         """
         bid_ = self._convert_c_int(base_id)
-        if ndef is None:
-            ndef = c_int(len(def_state))
+        ndef = c_int(len(def_state))
         if not self._solver.savePartDeformationState(bid_, def_state, ndef):
             return False
-        if nstr is None:
-            nstr = c_int(len(str_state))
+
+        nstr = c_int(len(str_state))
         return self._solver.savePartStressState(bid_, str_state, nstr)
 
     def solve_next(self, inp=None, inp_def=None, out_def=None, time_next=None):
@@ -682,7 +674,7 @@ class FedemSolver:
 
         return self.get_functions(out_def), success
 
-    def start_step(self):
+    def start_step(self, time_next=None):
         """
         This method starts a new time (or load) step, by calculating the
         predicted response, the coefficient matrix and right-hand-side vector
@@ -693,6 +685,11 @@ class FedemSolver:
         A non-zero value indicates some error that requires the simulation
         to terminate.
 
+        Parameters
+        ----------
+        time_next : float, default=None
+            Time of next step, to override time step size defined in the model
+
         Returns
         -------
         bool
@@ -700,7 +697,12 @@ class FedemSolver:
             or the end time of the simulation has been reached
         """
         self.__check_error("start_step")
-        return self._solver.startStep(byref(self.ierr))
+        if time_next is None:
+            success = True
+        else:
+            success = self._solver.setTime(self._convert_c_double(time_next))
+
+        return self._solver.startStep(byref(self.ierr)) if success else False
 
     def solve_iteration(self):
         """
