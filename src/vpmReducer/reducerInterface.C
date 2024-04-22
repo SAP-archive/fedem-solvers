@@ -49,7 +49,7 @@ extern void releaseSingeltons (bool lastPart = true);
 extern void resetCWD ();
 
 
-DLLexport(int) initSolverArgs (int argc, char** argv, bool first)
+DLLexport(int) initSolverArgs (int argc, char** argv, bool first, bool muted)
 {
   if (first)
     cmdLineArgInit(argc,argv);
@@ -128,6 +128,7 @@ DLLexport(int) initSolverArgs (int argc, char** argv, bool first)
   ADDOPTION ("oldStyleMass",true,"Always use lumped mass for 3- and "
              "4-noded shells\nas well as for 10-noded tetrahedrons",false);
 
+  FFaCmdLineArg::mute = muted;
   return 0; // No error conditions yet
 }
 

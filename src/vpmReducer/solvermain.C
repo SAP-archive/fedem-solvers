@@ -16,7 +16,7 @@
 */
 
 extern "C" {
-  int initSolverArgs(int argc, char** argv, bool first = true);
+  int initSolverArgs(int argc, char** argv, bool first, bool muted);
   int solvePart();
 }
 
@@ -33,5 +33,5 @@ extern "C" {
 
 int main (int argc, char** argv)
 {
-  return initSolverArgs(argc,argv) == 0 ? solvePart() : -1;
+  return initSolverArgs(argc,argv,true,false) == 0 ? solvePart() : -1;
 }
