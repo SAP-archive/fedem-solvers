@@ -333,7 +333,7 @@ contains
     !!==========================================================================
     !! Invoke Femlib routine for calculation of material stiffness matrix.
     !!
-    !! SUBROUTINE BEAM31 (EK,X,Y,Z,EP,CA,XS,EFFLEN,
+    !! SUBROUTINE BEAM31 (EK,X,Y,Z,EP,CA,XS,EFFLEN,PHI,
     !!                    IPINA,IPINB,ID,IW,IPSW,IERR)
     !! EK(1:12,1:12) - Stiffness matrix in global coordinate axes
     !! X(1:5), Y(1:5), Z(1:5) - Coordinates of beam element
@@ -352,6 +352,7 @@ contains
     !! CA(1:2) - Shear reduction factors in local Y- and Z-directions
     !! XS(1:2) - Shear centre Y,Z-coordinates (relative to neutral axis)
     !! EFFLEN - Effective beam length (0.0: computed from coordinates)
+    !! PHI - Angle (in degrees) between local Y-axis and principal Y-Axis
     !! IPINA, IPINB - End release flags (0: No end release here)
     !! ID - Element ID used for error messages, etc.
     !! IW - Output unit for debug print
@@ -360,7 +361,7 @@ contains
     !!==========================================================================
 
     call BEAM31 (beam%KmMat(1,1),Xg(1,1),Xg(1,2),Xg(1,3), &
-         &       bProp%EP(1),bProp%CA(1),bProp%XS(1),0.0_dp,0,0, &
+         &       bProp%EP(1),bProp%CA(1),bProp%XS(1),0.0_dp,0.0_dp,0,0, &
          &       beam%id%userId,lpu,ipsw,ierr)
     if (ierr < 0) then
        call reportError (error_p,'Failed to compute beam stiffness', &

@@ -857,7 +857,7 @@ contains
 
     !! Local variables
     integer           :: IPA, IPB
-    real(dp)          :: XG(5), YG(5), ZG(5), BSEC(13), NSMASS
+    real(dp)          :: XG(5), YG(5), ZG(5), BSEC(14), NSMASS
     character(len=64) :: errMsg
 
     !! --- Logic section ---
@@ -902,7 +902,7 @@ contains
 
     if (mod(iop,2) == 0) goto 100
     CALL BEAM31(EK(1,1),XG(1),YG(1),ZG(1),BSEC(2),BSEC(9),BSEC(11),BSEC(13), &
-         &      IPA,IPB,IEL,LPU,IPSW,IERR)
+         &      BSEC(14),IPA,IPB,IEL,LPU,IPSW,IERR)
     if (ierr /= 0) then
        if (BSEC(3) <= 1.0e-16_dp) then
           write(errMsg,"('A zero shear modulus G =',1PE12.5)") BSEC(3)
