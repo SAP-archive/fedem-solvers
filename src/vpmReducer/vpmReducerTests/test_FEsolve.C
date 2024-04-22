@@ -18,6 +18,7 @@
 
 #include "gtest.h"
 #include "vpmCommon/FFCmdLineArgInterface.H"
+#include <cstdlib>
 
 
 extern "C" {
@@ -26,7 +27,7 @@ extern "C" {
   //! From reducerInterface.C
   int solvePartDis(int,const int*,double*);
   //! From reducerInterface.C
-  void initSolverArgs(int,char**);
+  void initSolverArgs(int,char**,bool,bool);
   //! From reducerInterface.C
   void freeSingeltons();
 }
@@ -58,11 +59,20 @@ int main (int argc, char** argv)
     }
 
   // Initialize the command-line arguments
-  initSolverArgs(argc,argv);
+  initSolverArgs(argc,argv,true,true);
   ADDOPTION ("gvec",DoubleVec(),"Gravity vector in global coordinates");
 
-  // Invoke the google test driver
-  int status = RUN_ALL_TESTS();
+  int status = 0;
+  if (argc < 2) // Invoke the google test driver
+    status = RUN_ALL_TESTS();
+  else if (ffl_loadPart(argv[1]) == 1)
+  {
+    double displ[3];
+    int nodeNo = argc > 2 ? atoi(argv[2]) : 1;
+    status = solvePartDis(1,&nodeNo,displ);
+    std::cout << argv[1] <<": dis("<< nodeNo <<") = "
+              << displ[0] <<" "<< displ[1] <<" "<< displ[2] << std::endl;
+  }
 
   // Release heap-allocated singleton objects
   freeSingeltons();
@@ -116,6 +126,7 @@ INSTANTIATE_TEST_CASE_P(TestBeams, Solve,  //  FE-part file               node  
                                         Case{ "02_1D2D_Hybrid.nas",       1259, 0.0, 0.0129, 0.0 },
                                         Case{ "03_2D_ShellElements.nas", 29358, 0.0, 0.0123, 0.0 },
                                         Case{ "04_3D_VolumeElements.nas", 1257, 0.0, 0.0128, 0.0 },
+                                        Case{ "L-beam.nas",  3, 0.00806403, 0.330873, -0.0302335 },
                                         Case{ "CylinderBeam.nas",            6, 0.0, 0.3450, 0.0 },
                                         Case{ "CylinderBeam-generic.nas",    6, 0.0, 0.3450, 0.0 },
                                         Case{ "CylinderBeam-shearY.nas",  6, 0.3434, 0.3450, 0.0 },
