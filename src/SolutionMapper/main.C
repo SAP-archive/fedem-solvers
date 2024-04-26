@@ -13,7 +13,6 @@
 #include "FFrLib/FFrExtractor.H"
 #include "FFlLib/FFlInit.H"
 #include "FFlLib/FFlLinkHandler.H"
-#include "FFlLib/FFlConnectorItems.H"
 #include "FFlLib/FFlIOAdaptors/FFlReaders.H"
 #include "FFlLib/FFlIOAdaptors/FFlFedemWriter.H"
 #include "FFlLib/FFlFEParts/FFlShellElementBase.H"
@@ -455,7 +454,7 @@ size_t readMappingFile (std::string& mapFile, unsigned int& cs,
   int iprint = 0;
   GETOPTION ("debug",iprint);
 
-  int inod, id[4]; // Read mapping data for each node
+  int inod, id[4] = {0,0,0,0}; // Read mapping data for each node
   for (inod = 0; inod < nnod; inod++)
     if (FT_read(id,sizeof(int),4,fDes) < 4 || id[3] < 1 || id[3] > 20)
       nnod = 0;
@@ -519,8 +518,7 @@ bool writeSubModel (std::string& subFile, FFlLinkHandler*& model, IntVec& nodes)
     {
       if (node->isRefNode())
       {
-        FFlConnectorItems addedItems;
-        node = model->createAttachableNode(node,node->getPos(),addedItems);
+        node = model->createAttachableNode(node,node->getPos());
         nodeID = node->getID();
       }
       node->setExternal();
