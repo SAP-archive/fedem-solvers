@@ -45,12 +45,10 @@ if ( pFUnit_FOUND )
   add_fortran_test ( test_sysbeam testBeam.pf SRCDIR vpmCommon_F90 FemLib )
   add_fortran_test ( test_readfsi testFSIreader.pf SRCDIR vpmCommon_F90 )
   add_fortran_test ( test_motion testMotion.pf SRCDIR vpmCommon_F90 )
-  add_fortran_test ( test_ramp testSmoothRamp.pf SRCDIR vpmCommon_F90 FFaFunctionLib_F90 )
   target_sources ( test_sysbeam PUBLIC ../finiteElementModule.f90 dummyModules.f90 )
   target_sources ( test_readfsi PUBLIC ../initiateTriadTypeModule.f90 )
   target_sources ( test_motion PUBLIC ../motionTypeModule.f90 ../motionRoutinesModule.f90 dummyModules.f90 )
-  target_sources ( test_ramp PUBLIC ../engineRoutinesModule.f90 ../functionTypeModule.f90 ../sensorTypeModule.f90
-                                    ../springTypeModule.f90 ../damperTypeModule.f90 dummy2Modules.f90 )
+  add_subdirectory ( moreTests )
 endif ( pFUnit_FOUND )
 
 if ( GTest_FOUND )

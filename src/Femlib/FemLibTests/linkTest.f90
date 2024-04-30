@@ -21,8 +21,8 @@ program linkTest
   type(CompositeType) :: laminate
 
   call Cmatrix (laminate,beta,C)
-  call Andes3shell_stiffmat (Xl,Yl,C,alpha,beta,2,EK,IERR)
-  call Andes4shell_stiffmat (Xl,Yl,Zl,C,alpha,beta,2,EK,IERR)
+  call Andes3shell_stiffmat (Xl,Yl,C,alpha,beta,2,EK,6,IERR)
+  call Andes4shell_stiffmat (Xl,Yl,Zl,C,alpha,beta,2,EK,6,IERR)
 
   call cstetstiff (xl,yl,zl,CcMat,EK,alpha,6,0,ierr)
   call cstetmass (xl,yl,zl,beta,EK,alpha,6,0,ierr)

@@ -8,7 +8,7 @@ C>    @file beam.f
 C>    @brief Subroutines for calculation of beam element matrices.
 C
 C>    @brief Generates the stiffness matrix for a 12-dof beam element.
-      SUBROUTINE BEAM31(EK,X,Y,Z,EP,CA,XS,EFFLEN,
+      SUBROUTINE BEAM31(EK,X,Y,Z,EP,CA,XS,EFFLEN,PHI,
      +                  IPINA,IPINB,ID,IW,IPSW,IERR)
 C
 C***********************************************************************
@@ -69,16 +69,33 @@ C
 C
 C     CHECK THE PROPERTY PARAMETERS
 C
-   40 IF(EP(2)-1.0D-16) 1030,1030,41
-   41 IF(EP(3)-1.0D-16) 1030,1030,50
-
+   40 if (EP(2) .le. 1.0D-16 .or. EP(3) .le. 1.0D-16) go to 1030
+C
+C     SET UP LOCAL TO GLOBAL TRANSFORMATION MATRIX
+C
+      CALL DCOS30(T2,X,Y,Z)
+      if (ABS(PHI) .gt. 1.0D-6) then
+         fi = PHI*ATAN(1.0D0)/4.5D1
+         cf = cos(fi)
+         sf = sin(fi)
+         do i = 1, 3
+            a = cf*T2(2,i) + sf*T2(3,i)
+            b = cf*T2(3,i) - sf*T2(2,i)
+            T2(2,i) = a
+            T2(3,i) = b
+         end do
+         a = cf*XS(1) + sf*XS(2)
+         b = cf*XS(2) - sf*XS(1)
+         XS(1) = a
+         XS(2) = b
+      end if
+C
 C     STIFFNESS MATRIX IN LOCAL COORDINATES
 C
-   50 CALL BELS31(EK,BL,EP,CA,XS,ID,IW,IPSW)
+      CALL BELS31(EK,BL,EP,CA,XS,ID,IW,IPSW)
 C
 C     TRANSFORM TO GLOBAL COORDINATES
 C
-      CALL DCOS30(T2,X,Y,Z)
       if (iPinA .le. 0 .and. iPinB .le. 0) then
 C        No pin flags, transform the whole matrix
          CALL MPRO30(EK,T2,12)
@@ -678,10 +695,16 @@ C
       WRITE(IW,6050) RIY
       WRITE(IW,6060) RIZ
       WRITE(IW,6070) RIT
-      WRITE(IW,6080) ALY
-      WRITE(IW,6090) ALZ
+      WRITE(IW,6080) CAY
+      WRITE(IW,6090) CAZ
       WRITE(IW,6100) YS
       WRITE(IW,6110) ZS
+      WRITE(IW,6120) EA
+      WRITE(IW,6130) EIY
+      WRITE(IW,6140) EIZ
+      WRITE(IW,6150) GIT
+      WRITE(IW,6160) ALY
+      WRITE(IW,6170) ALZ
 C
    20 DO 30 I=1,12
       DO 30 J=1,12
@@ -744,27 +767,39 @@ C     PRINT ?
 C
  1000 CONTINUE
       IF(IPSW-2) 3000,2010,2000
- 2000 WRITE(IW,6120)
+ 2000 WRITE(IW,6180)
       CALL MPRT30(EK,12,12,IW)
- 2010 WRITE(IW,6130) ID
+ 2010 WRITE(IW,6190) ID
 C
  3000 RETURN
 C
 C
  6000 FORMAT(///29H ENTERING BELS31 FOR ELEMENT ,I7,2H :)
- 6010 FORMAT(/14H     L      = ,1PE12.5)
+ 6010 FORMAT(14H     L      = ,1PE12.5)
  6020 FORMAT(14H     E      = ,1PE12.5)
  6030 FORMAT(14H     G      = ,1PE12.5)
  6040 FORMAT(14H     A      = ,1PE12.5)
  6050 FORMAT(14H     IY     = ,1PE12.5)
  6060 FORMAT(14H     IZ     = ,1PE12.5)
  6070 FORMAT(14H     IT     = ,1PE12.5)
- 6080 FORMAT(14H     ALFAY  = ,1PE12.5)
- 6090 FORMAT(14H     ALFAZ  = ,1PE12.5)
+ 6080 FORMAT(14H     KAPPAY = ,1PE12.5)
+ 6090 FORMAT(14H     KAPPAZ = ,1PE12.5)
  6100 FORMAT(14H     YSHEAR = ,1PE12.5)
  6110 FORMAT(14H     ZSHEAR = ,1PE12.5)
- 6120 FORMAT(//37H     LOCAL ELEMENT STIFFNESS MATRIX :)
- 6130 FORMAT(/28H LEAVING BELS31 FOR ELEMENT ,I7)
+ 6120 FORMAT(14H     EA     = ,1PE12.5)
+ 6130 FORMAT(14H     EIY    = ,1PE12.5)
+ 6140 FORMAT(14H     EIZ    = ,1PE12.5)
+ 6150 FORMAT(14H     GIT    = ,1PE12.5)
+ 6160 FORMAT(14H     ALFAY  = ,1PE12.5)
+ 6170 FORMAT(14H     ALFAZ  = ,1PE12.5)
+ 6180 FORMAT(//37H     LOCAL ELEMENT STIFFNESS MATRIX :)
+ 6190 FORMAT(/28H LEAVING BELS31 FOR ELEMENT ,I7)
+      WRITE(IW,6120) EA
+      WRITE(IW,6130) EIY
+      WRITE(IW,6140) EIZ
+      WRITE(IW,6150) GIT
+      WRITE(IW,6160) ALY
+      WRITE(IW,6170) ALZ
 C
       END
       SUBROUTINE BELS32(SR,EK,V,FP,FE,P,BL,XS,XP,ZETA)

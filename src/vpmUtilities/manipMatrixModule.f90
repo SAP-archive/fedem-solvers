@@ -463,15 +463,16 @@ contains
     tr(:,3) = cross_product(tr(:,1),tr(:,2))
     tr(:,4) = P1
 
-    vlength = tr(1,1)*tr(1,1) + tr(2,1)*tr(2,1) + tr(3,1)*tr(3,1)
+    vlength = len3sqr(tr(:,1))
     if (vlength > epsDiv0_p) then
        tr(:,1) = tr(:,1) / sqrt(vlength)
     else
        if (present(ierr)) ierr = -1
        if (present(lpu)) then
           write(lpu,*) '*** trans3P: Point 1 and 2 are coinciding'
-          write(lpu,"(14X,'P1 = ',1P3E13.5)") P1
-          write(lpu,"(14X,'P2 = ',1P3E13.5)") P2
+          write(lpu,"(14X,'P1 =',1P3E13.5)") P1
+          write(lpu,"(14X,'P2 =',1P3E13.5)") P2
+          write(lpu,"(11X,'P2-P1 =',1P3E13.5)") P2-P1
        else
           write(*,*) '*** trans3P: Point 1 and 2 are coinciding'
        end if
@@ -479,37 +480,59 @@ contains
        return
     end if
 
-    vlength = tr(1,3)*tr(1,3) + tr(2,3)*tr(2,3) + tr(3,3)*tr(3,3)
+    vlength = len3sqr(tr(:,3))
     if (vlength > epsDiv0_p) then
        tr(:,3) = tr(:,3) / sqrt(vlength)
        tr(:,2) = cross_product(tr(:,3),tr(:,1))
     else
-       vlength = tr(1,2)*tr(1,2) + tr(2,2)*tr(2,2) + tr(3,2)*tr(3,2)
-       if (vlength > epsDiv0_p) then
+       if (len3sqr(tr(:,2)) <= epsDiv0_p) then
           if (present(ierr)) ierr = -2
           if (present(lpu)) then
              write(lpu,*) '*** trans3P: Point 1 and 3 are coinciding'
-             write(lpu,"(14X,'P1 = ',1P3E13.5)") P1
-             write(lpu,"(14X,'P3 = ',1P3E13.5)") P3
+             write(lpu,"(14X,'P1 =',1P3E13.5)") P1
+             write(lpu,"(14X,'P3 =',1P3E13.5)") P3
           else
              write(*,*) '*** trans3P: Point 1 and 3 are coinciding'
           end if
-       else
+       else if (len3sqr(P3-P2) <= epsDiv0_p) then
           if (present(ierr)) ierr = -3
           if (present(lpu)) then
+             write(lpu,*) '*** trans3P: Point 2 and 3 are coinciding'
+             write(lpu,"(14X,'P2 =',1P3E13.5)") P2
+             write(lpu,"(14X,'P3 =',1P3E13.5)") P3
+          else
+             write(*,*) '*** trans3P: Point 2 and 3 are coinciding'
+          end if
+       else
+          if (present(ierr)) ierr = -4
+          if (present(lpu)) then
              write(lpu,*) '*** trans3P: The three points are on a straight line'
-             write(lpu,"(14X,'P1 = ',1P3E13.5)") P1
-             write(lpu,"(14X,'P2 = ',1P3E13.5)") P2
-             write(lpu,"(14X,'P3 = ',1P3E13.5)") P3
+             write(lpu,"(14X,'P1 =',1P3E13.5)") P1
+             write(lpu,"(14X,'P2 =',1P3E13.5)") P2
+             write(lpu,"(14X,'P3 =',1P3E13.5)") P3
           else
              write(*,*) '*** trans3P: The three points are on a straight line'
           end if
+       end if
+       if (present(lpu)) then
+          write(lpu,"(11X,'P2-P1 =',1P3E13.5)") P2-P1
+          write(lpu,"(11X,'P3-P1 =',1P3E13.5)") P3-P1
+          write(lpu,"(11X,'P3-P2 =',1P3E13.5)") P3-P2
+          write(lpu,"(' (P2-P1)x(P3-P1) =',1P3E13.5)") tr(:,3)
        end if
        tr = hugeVal_p
        return
     end if
 
     if (present(ierr)) ierr = 0
+
+  contains
+
+    !> brief Calculates the square of the length of a 3D vector.
+    real(dp) function len3sqr (v)
+      real(dp), intent(in) :: v(3)
+      len3sqr = v(1)*v(1) + v(2)*v(2) + v(3)*v(3)
+    end function len3sqr
 
   end function trans3P
 
@@ -572,7 +595,7 @@ contains
 
 
   !!============================================================================
-  !> @brief Writes the integer array in a formatted way to file.
+  !> @brief Writes out and integer array in a formatted way.
   !> @param[in] array The array to print out
   !> @param[in] lpu File unit number to print to
   !> @param[in] text Heading to be printed before the matrix values
@@ -600,7 +623,7 @@ contains
 
 #if !defined(FT_HAS_INT4_ONLY) && !defined(FT_USE_INT8)
   !!============================================================================
-  !> @brief Writes the integer array in a formatted way to file.
+  !> @brief Writes out an integer array in a formatted way.
   !> @param[in] array The array to print out
   !> @param[in] lpu File unit number to print to
   !> @param[in] text Heading to be printed before the matrix values
@@ -630,39 +653,28 @@ contains
 
 
   !!============================================================================
-  !> @brief Writes the single precision array in a formatted way to file.
+  !> @brief Writes out a single precision array in a formatted way.
   !> @param[in] array The array to print out
   !> @param[in] lpu File unit number to print to
   !> @param[in] text Heading to be printed before the array elements
   !> @param[in] nellIn Max number of values to print per line
-  !> @param[in] fName Name for (new) file to print to
-  !> @param[in] eps Zero tolerance, array elements with absolut value smaller
-  !> than this value will be replaced by 0.0.
+  !> @param[in] eps Zero tolerance, truncate terms with smaller absolute value
 
-  subroutine WriteRealArray (array,lpu,text,nellIn,fName,eps)
+  subroutine WriteRealArray (array,lpu,text,nellIn,eps)
 
-    use KindModule         , only : sp, epsDiv0_p
-    use FileUtilitiesModule, only : findUnitNumber
+    use KindModule, only : sp, epsDiv0_p
 
     real(sp)    , intent(in)           :: array(:)
-    integer     , intent(in), optional :: lpu, nellIn
-    character(*), intent(in), optional :: text, fName
+    integer     , intent(in)           :: lpu
+    integer     , intent(in), optional :: nellIn
+    character(*), intent(in), optional :: text
     real(sp)    , intent(in), optional :: eps
 
     !! Local variables
-    integer  :: i, j, n, nell, lpuActual
+    integer  :: i, j, n, nell
     real(sp) :: epsZero
 
     !! --- Logic section ---
-
-    if (present(lpu)) then
-       lpuActual = lpu
-    else if (present(fName)) then
-       lpuActual = findUnitNumber(96)
-       open(UNIT = lpuActual, FILE = fName)
-    else
-       return
-    end if
 
     if (present(nellIn)) then
        nell = min(20,nellIn) ! Number of array elements to write per line
@@ -676,60 +688,47 @@ contains
        epsZero = epsDiv0_p
     end if
 
-    if (present(text)) write(lpuActual,'(A)') trim(text)
+    if (present(text)) write(lpu,'(A)') trim(text)
 
     n = size(array)
     do i = 1, n, nell
-       write(lpuActual,'(i6)',ADVANCE='no') i
+       write(lpu,'(i6)',ADVANCE='no') i
        do j = i, min(i+nell-1,n)
           if (abs(array(j)) > epsZero) then
-             write(lpuActual,'(ES15.6E3)',ADVANCE='no') array(j)
+             write(lpu,'(ES15.6E3)',ADVANCE='no') array(j)
           else
-             write(lpuActual,'(F11.1,4X)',ADVANCE='no') 0.0
+             write(lpu,'(F11.1,4X)',ADVANCE='no') 0.0
           end if
        end do
-       write(lpuActual,*)
+       write(lpu,*)
     end do
-
-    if (.not. present(lpu)) close(lpuActual)
 
   end subroutine WriteRealArray
 
 
   !!============================================================================
-  !> @brief Writes the 2D single precision array in a formatted way to file.
+  !> @brief Writes out a 2D single precision array in a formatted way.
   !> @param[in] array The array to print out
   !> @param[in] lpu File unit number to print to
   !> @param[in] text Heading to be printed before the matrix elements
   !> @param[in] nellIn Max number of values to print per line
-  !> @param[in] fName Name for (new) file to print to
-  !> @param[in] eps Zero tolerance, array elements with absolut value smaller
-  !> than this value will be replaced by 0.0.
+  !> @param[in] eps Zero tolerance, truncate terms with smaller absolute value
 
-  subroutine WriteRealMatrix (array,lpu,text,nellIn,fName,eps)
+  subroutine WriteRealMatrix (array,lpu,text,nellIn,eps)
 
-    use KindModule         , only : sp, epsDiv0_p
-    use FileUtilitiesModule, only : findUnitNumber
+    use KindModule, only : sp, epsDiv0_p
 
     real(sp)    , intent(in)           :: array(:,:)
-    integer     , intent(in), optional :: lpu, nellIn
-    character(*), intent(in), optional :: text, fName
+    integer     , intent(in)           :: lpu
+    integer     , intent(in), optional :: nellIn
+    character(*), intent(in), optional :: text
     real(sp)    , intent(in), optional :: eps
 
     !! Local variables
-    integer  :: i, j, k, m, n, nell, lpuActual
+    integer  :: i, j, k, m, n, nell
     real(sp) :: epsZero
 
     !! --- Logic section ---
-
-    if (present(lpu)) then
-       lpuActual = lpu
-    else if (present(fName)) then
-       lpuActual = findUnitNumber(96)
-       open(UNIT = lpuActual, FILE = fName)
-    else
-       return
-    end if
 
     if (present(nellIn)) then
        nell = min(20,nellIn) ! Number of matrix elements to write per line
@@ -743,64 +742,51 @@ contains
        epsZero = epsDiv0_p
     end if
 
-    if (present(text)) write(lpuActual,'(A)') trim(text)
+    if (present(text)) write(lpu,'(A)') trim(text)
 
     m = size(array,1)
     n = size(array,2)
     do j = 1, n, nell
-       write(lpuActual,'(1x,20i15)') (i,i=j,min(j+nell-1,n))
+       write(lpu,'(1x,20i15)') (i,i=j,min(j+nell-1,n))
        do i = 1, m
-          write(lpuActual,'(i6)',ADVANCE='no') i
+          write(lpu,'(i6)',ADVANCE='no') i
           do k = j, min(j+nell-1,n)
              if (abs(array(i,k)) > epsZero) then
-                write(lpuActual,'(ES15.6E3)',ADVANCE='no') array(i,k)
+                write(lpu,'(ES15.6E3)',ADVANCE='no') array(i,k)
              else
-                write(lpuActual,'(F11.1,4X)',ADVANCE='no') 0.0
+                write(lpu,'(F11.1,4X)',ADVANCE='no') 0.0
              end if
           end do
-          write(lpuActual,*)
+          write(lpu,*)
        end do
     end do
-
-    if (.not. present(lpu)) close(lpuActual)
 
   end subroutine WriteRealMatrix
 
 
   !!============================================================================
-  !> @brief Writes the double precision array in a formatted way to file.
+  !> @brief Writes out a double precision array in a formatted way.
   !> @param[in] array The array to print out
   !> @param[in] lpu File unit number to print to
   !> @param[in] text Heading to be printed before the array elements
   !> @param[in] nellIn Max number of values to print per line
-  !> @param[in] fName Name for (new) file to print to
-  !> @param[in] eps Zero tolerance, array elements with absolut value smaller
-  !> than this value will be replaced by 0.0.
+  !> @param[in] eps Zero tolerance, truncate terms with smaller absolute value
 
-  subroutine WriteDoubleArray (array,lpu,text,nellIn,fName,eps)
+  subroutine WriteDoubleArray (array,lpu,text,nellIn,eps)
 
-    use KindModule         , only : dp, epsDiv0_p
-    use FileUtilitiesModule, only : findUnitNumber
+    use KindModule, only : dp, epsDiv0_p
 
     real(dp)    , intent(in)           :: array(:)
-    integer     , intent(in), optional :: lpu, nellIn
-    character(*), intent(in), optional :: text, fName
+    integer     , intent(in)           :: lpu
+    integer     , intent(in), optional :: nellIn
+    character(*), intent(in), optional :: text
     real(dp)    , intent(in), optional :: eps
 
     !! Local variables
-    integer  :: i, j, n, nell, lpuActual
+    integer  :: i, j, n, nell
     real(dp) :: epsZero
 
     !! --- Logic section ---
-
-    if (present(lpu)) then
-       lpuActual = lpu
-    else if (present(fName)) then
-       lpuActual = findUnitNumber(96)
-       open(UNIT = lpuActual, FILE = fName)
-    else
-       return
-    end if
 
     if (present(nellIn)) then
        nell = min(20,nellIn) ! Number of array elements to write per line
@@ -814,60 +800,47 @@ contains
        epsZero = epsDiv0_p
     end if
 
-    if (present(text)) write(lpuActual,'(A)') trim(text)
+    if (present(text)) write(lpu,'(A)') trim(text)
 
     n = size(array)
     do i = 1, n, nell
-       write(lpuActual,'(i6)',ADVANCE='no') i
+       write(lpu,'(i6)',ADVANCE='no') i
        do j = i, min(i+nell-1,n)
           if (abs(array(j)) > epsZero) then
-             write(lpuActual,'(ES15.6E3)',ADVANCE='no') array(j)
+             write(lpu,'(ES15.6E3)',ADVANCE='no') array(j)
           else
-             write(lpuActual,'(F11.1,4X)',ADVANCE='no') 0.0
+             write(lpu,'(F11.1,4X)',ADVANCE='no') 0.0
           end if
        end do
-       write(lpuActual,*)
+       write(lpu,*)
     end do
-
-    if (.not. present(lpu)) close(lpuActual)
 
   end subroutine WriteDoubleArray
 
 
   !!============================================================================
-  !> @brief Writes the 2D double precision array in a formatted way to file.
+  !> @brief Writes out a 2D double precision array in a formatted way.
   !> @param[in] array The array to print out
   !> @param[in] lpu File unit number to print to
   !> @param[in] text Heading to be printed before the matrix elements
   !> @param[in] nellIn Max number of values to print per line
-  !> @param[in] fName Name for (new) file to print to
-  !> @param[in] eps Zero tolerance, array elements with absolut value smaller
-  !> than this value will be replaced by 0.0.
+  !> @param[in] eps Zero tolerance, truncate terms with smaller absolute value
 
-  subroutine WriteDoubleMatrix (array,lpu,text,nellIn,fName,eps)
+  subroutine WriteDoubleMatrix (array,lpu,text,nellIn,eps)
 
-    use KindModule         , only : dp, epsDiv0_p
-    use FileUtilitiesModule, only : findUnitNumber
+    use KindModule, only : dp, epsDiv0_p
 
     real(dp)    , intent(in)           :: array(:,:)
-    integer     , intent(in), optional :: lpu, nellIn
-    character(*), intent(in), optional :: text, fName
+    integer     , intent(in)           :: lpu
+    integer     , intent(in), optional :: nellIn
+    character(*), intent(in), optional :: text
     real(dp)    , intent(in), optional :: eps
 
     !! Local variables
-    integer  :: i, j, k, m, n, nell, lpuActual
+    integer  :: i, j, k, m, n, nell
     real(dp) :: epsZero
 
     !! --- Logic section ---
-
-    if (present(lpu)) then
-       lpuActual = lpu
-    else if (present(fName)) then
-       lpuActual = findUnitNumber(96)
-       open(UNIT = lpuActual, FILE = fName)
-    else
-       return
-    end if
 
     if (present(nellIn)) then
        nell = min(20,nellIn) ! Number of matrix elements to write per line
@@ -881,33 +854,31 @@ contains
        epsZero = epsDiv0_p
     end if
 
-    if (present(text)) write(lpuActual,'(A)') trim(text)
+    if (present(text)) write(lpu,'(A)') trim(text)
 
     m = size(array,1)
     n = size(array,2)
     do j = 1, n, nell
-       write(lpuActual,'(1x,20i15)') (i,i=j,min(j+nell-1,n))
+       write(lpu,'(1x,20i15)') (i,i=j,min(j+nell-1,n))
        do i = 1, m
-          write(lpuActual,'(i6)',ADVANCE='no') i
+          write(lpu,'(i6)',ADVANCE='no') i
           do k = j, min(j+nell-1,n)
              if (abs(array(i,k)) > epsZero) then
-                write(lpuActual,'(ES15.6E3)',ADVANCE='no') array(i,k)
+                write(lpu,'(ES15.6E3)',ADVANCE='no') array(i,k)
              else
-                write(lpuActual,'(F11.1,4X)',ADVANCE='no') 0.0
+                write(lpu,'(F11.1,4X)',ADVANCE='no') 0.0
              end if
           end do
-          write(lpuActual,*)
+          write(lpu,*)
        end do
     end do
-
-    if (.not. present(lpu)) close(lpuActual)
 
   end subroutine WriteDoubleMatrix
 
 
   !!============================================================================
-  !> @brief Unifies the given matrix A.
-  !> @details If A is not square, the greatest possible square matrix will be
+  !> @brief Unifies the given matrix @b A.
+  !> @details If @b A is not square, the greatest possible square matrix will be
   !> unified and the rest will be zeroed.
 
   subroutine unify (A)
@@ -932,7 +903,7 @@ contains
 
   !!============================================================================
   !> @brief Returns a matrix pointer to an integer array.
-  !> @details `array` can be a one-dimensional array as actual argument,
+  !> @details @a array can be a one-dimensional array as actual argument,
   !> but is a matrix as dummy argument.
 
   function MatrixPointToArray_int (array,rows,columns)
@@ -950,7 +921,7 @@ contains
 
   !!============================================================================
   !> @brief Returns a matrix pointer to a real array.
-  !> @details `array` can be a one-dimensional array as actual argument,
+  !> @details @a array can be a one-dimensional array as actual argument,
   !> but is a matrix as dummy argument.
 
   function MatrixPointToArray_real (array,rows,columns)

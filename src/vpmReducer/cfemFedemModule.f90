@@ -290,7 +290,7 @@ contains
 
     !! Local variables
     integer  :: iel, iMat, iProp, nenod, nMat, nProp, bRedirectStdout
-    real(dp) :: e, E_prev, nu, nu_prev, rho, prop(11), prop_prev(11)
+    real(dp) :: e, E_prev, nu, nu_prev, rho, prop(14), prop_prev(14)
     real(dp), allocatable :: matData(:,:), propData(:,:)
     integer,  allocatable :: elMat(:), elProp(:)
     real(dp), allocatable :: force_f2c(:), disp_f2c(:)
@@ -342,8 +342,8 @@ contains
 
 
     nProp = 0
-    prop (:) = 0.0_dp
-    prop_prev(:) = -1.0_dp
+    prop = 0.0_dp
+    prop_prev = -1.0_dp
 
     do iel = 1, sam%nel
        nenod=sam%mpmnpc(iel+1)-sam%mpmnpc(iel)
@@ -367,7 +367,7 @@ contains
     end do
 
 
-    allocate(elProp(sam%nel),propData(11,nProp),STAT=ierr)
+    allocate(elProp(sam%nel),propData(14,nProp),STAT=ierr)
     if (ierr /= 0) then
        ierr = allocationError('cfem_model 2')
        return
@@ -396,8 +396,7 @@ contains
           if (prop(1) /= prop_prev(1)) then
              iProp=iProp+1
              propData(1,iProp)=prop(1)
-             prop(2:11)=0.0_dp
-             prop_prev = prop
+             prop_prev(1) = prop(1)
           end if
        end if
        elProp(iel) = iProp

@@ -5,7 +5,7 @@
 !! This file is part of FEDEM - https://openfedem.org
 !!==============================================================================
 
-!> @file dummy2Modules.f90
+!> @file moreTests/dummyModules.f90
 !> @brief Dummy modules used to reduce dependencies in unit tests.
 !>
 !> @details This file contains dummy implementations of some modules,
